@@ -1,0 +1,100 @@
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+.ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+db.sqlite3
+instance/
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# API Keys and Secrets
+secrets.json
+config/secrets.py
+*.pem
+*.key
+
+# M-Pesa/Daraja API specific
+daraja_credentials.json
+mpesa_keys.json
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Documentation builds
+docs/_build/
+
+# Flask specific
+instance/
+.webassets-cache
+
+# Node modules (if you add any frontend tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

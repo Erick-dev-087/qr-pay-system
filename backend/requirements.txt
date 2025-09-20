@@ -1,0 +1,24 @@
+# Core Flask dependencies
+Flask==3.1.1
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+
+# Database
+SQLAlchemy==2.0.43
+
+# HTTP requests and API calls
+requests==2.32.4
+
+# QR Code generation
+qrcode==7.4.2
+Pillow==11.2.1
+
+# Environment configuration
+python-dotenv==1.0.1
+
+# Additional utilities
+Werkzeug==3.1.3
+click==8.2.1
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.2
