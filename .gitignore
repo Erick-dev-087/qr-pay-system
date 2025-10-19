@@ -98,6 +98,9 @@ logs/
 .coverage
 htmlcov/
 .tox/
+# Ignore manual test/playground files
+backend/test_qr_utils.py
+backend/test_*.py
 
 # ===== Backup Files =====
 *.bak
