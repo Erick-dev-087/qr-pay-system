@@ -6,7 +6,7 @@ load_dotenv()
 
 class DatabaseConfigs():
     """Database Settings"""
-    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL","sqlite:///qr_payment")
+    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL","sqlite:///qr_payment.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class FlaskConfigs():
