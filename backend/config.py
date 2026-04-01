@@ -6,7 +6,10 @@ load_dotenv()
 
 class DatabaseConfigs():
     """Database Settings"""
-    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL","sqlite:///qr_payment.db")
+    
+    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+    if not SQLALCHEMY_DATABASE_URL:
+        raise ValueError("DATABASE_URL must be set in environment variables")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class FlaskConfigs():
@@ -45,5 +48,20 @@ class SecurityConfig:
     SESSION_COOKIE_HTTPONLY = True
     PERMANENT_SESSION_LIFETIME = int(os.getenv("SESSION_LIFETIME", "1800"))
 
+class JWTConfig:
+    """JWT Authentication Configs"""
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-this-in-production")
+
+    JWT_ACCESS_TOKEN_EXPIRES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRES", "3600")) #Expires after an hour
+    JWT_REFRESH_TOKEN_EXPIRES = int(os.getenv("JWT_REFRESH_TOKEN_EXPIRES", "2592000")) # Expires in 30 days
+
+    JWT_TOKEN_LOCATION = ["headers"] #Look in Authorization header
+
+    JWT_HEADER_NAME = "Authorization"
+    JWT_HEADER_TYPE = "Bearer" 
+
+    JWT_ERROR_MESSAGE_KEY = "message"
+
+    JWT_ALGORITH = "HS256"
 
     

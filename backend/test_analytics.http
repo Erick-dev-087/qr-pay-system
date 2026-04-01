@@ -1,0 +1,188 @@
+### QR Payment System - Analytics Testing
+### VS Code REST Client File
+### Extension: REST Client (by Huachao Mao)
+### Run requests by clicking "Send Request" above each request
+
+@baseUrl = http://localhost:5000/api
+@userEmail = john.kamau@email.com
+@userPassword = password123
+@vendorEmail = naivas.westlands@business.com
+@vendorPassword = vendor123
+
+###############################################
+# 1. LOGIN AS USER
+###############################################
+# Click "Send Request" to login
+# Copy the access_token from response
+# Use it in the analytics requests below
+
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+###############################################
+# 2. GET USER ANALYTICS - FULL DASHBOARD
+###############################################
+# This shows EVERYTHING:
+# - Overview (total spent, transaction count, average)
+# - Top merchants (with business names and categories!)
+# - Weekday patterns (which days you spend most)
+# - Monthly trends (month by month breakdown)
+# - Weekly breakdown (week by week)
+# - Largest transactions (top 10 biggest payments)
+# - Insights (personalized insights about spending)
+
+GET {{baseUrl}}/user/analytics?days=30
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTgyNTA4OSwianRpIjoiMWIzODk1NzItZWZlNi00MjFjLWI0MTMtMjU0MDAzNjdlNzljIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjQiLCJuYmYiOjE3NjU4MjUwODksImNzcmYiOiIxMmY3YzY4OS00MGY2LTQwZGYtYWMxYy1mZTVjZDY1N2MyOGUiLCJleHAiOjE3NjU4Mjg2ODksInVzZXJfdHlwZSI6InVzZXIiLCJwaG9uZSI6IjI1NDcxMjM0NTY3OCIsImVtYWlsIjoiam9obi5rYW1hdUBlbWFpbC5jb20ifQ.r8y0aWzoI-i6vOeXLuLQ4MyvK3vyN-DyEZ7O2YdmD20
+###############################################
+# 3. GET USER ANALYTICS - CUSTOM TIME PERIODS
+###############################################
+# Test with different time ranges
+# Try: ?days=60, ?days=90, ?months=6, ?weeks=8
+
+GET {{baseUrl}}/user/analytics?days=60&months=6&weeks=8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTgwMjg0MiwianRpIjoiYzNiMTE5YjYtNjg3ZC00MGQ5LTg3MmYtMTdhODFkNmM3ODdhIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNzY1ODAyODQyLCJjc3JmIjoiOTAyZTUxZGEtYzdiNC00MTQ4LTgyNWYtZmQzZGIxYzZhNGUwIiwiZXhwIjoxNzY1ODA2NDQyLCJ1c2VyX3R5cGUiOiJ1c2VyIiwicGhvbmUiOiIyNTQ3MTIzNDU2NzgiLCJlbWFpbCI6ImpvaG4ua2FtYXVAZW1haWwuY29tIn0.gHN0Gh12q9JY1XgXuOJqzkOP8adVNxmSu-BL3aIPqaA
+###############################################
+# 4. LOGIN AS VENDOR
+###############################################
+# Click "Send Request" to login
+# Copy the access_token from response
+# Use it in the vendor analytics requests below
+
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{vendorEmail}}",
+  "password": "{{vendorPassword}}"
+}
+
+###############################################
+# 5. GET VENDOR ANALYTICS - FULL DASHBOARD
+###############################################
+# This shows EVERYTHING for vendor:
+# - Cash flow (incoming vs outgoing money)
+# - Net flow (profit/loss calculation with surplus/deficit)
+# - Top customers (anonymized customer analytics)
+# - Largest transactions (top 10 biggest payments received)
+# - Outflow breakdown (where money goes: refunds, transfers, payouts, etc.)
+# - Spending ratio (how much vendor retains vs spends)
+# - Weekly performance (week-by-week comparison)
+
+GET {{baseUrl}}/merchant/analytics?days=30
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTgwMjg0MiwianRpIjoiYzNiMTE5YjYtNjg3ZC00MGQ5LTg3MmYtMTdhODFkNmM3ODdhIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNzY1ODAyODQyLCJjc3JmIjoiOTAyZTUxZGEtYzdiNC00MTQ4LTgyNWYtZmQzZGIxYzZhNGUwIiwiZXhwIjoxNzY1ODA2NDQyLCJ1c2VyX3R5cGUiOiJ1c2VyIiwicGhvbmUiOiIyNTQ3MTIzNDU2NzgiLCJlbWFpbCI6ImpvaG4ua2FtYXVAZW1haWwuY29tIn0.gHN0Gh12q9JY1XgXuOJqzkOP8adVNxmSu-BL3aIPqaA
+
+###############################################
+# 6. GET VENDOR ANALYTICS - CUSTOM TIME PERIODS
+###############################################
+# Test with different time ranges
+# Try: ?days=60, ?days=90, ?weeks=8, ?weeks=12
+
+GET {{baseUrl}}/merchant/analytics?days=90&weeks=12
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTgwMjg0MiwianRpIjoiYzNiMTE5YjYtNjg3ZC00MGQ5LTg3MmYtMTdhODFkNmM3ODdhIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNzY1ODAyODQyLCJjc3JmIjoiOTAyZTUxZGEtYzdiNC00MTQ4LTgyNWYtZmQzZGIxYzZhNGUwIiwiZXhwIjoxNzY1ODA2NDQyLCJ1c2VyX3R5cGUiOiJ1c2VyIiwicGhvbmUiOiIyNTQ3MTIzNDU2NzgiLCJlbWFpbCI6ImpvaG4ua2FtYXVAZW1haWwuY29tIn0.gHN0Gh12q9JY1XgXuOJqzkOP8adVNxmSu-BL3aIPqaA
+
+###############################################
+# 7. GET USER PROFILE
+###############################################
+# Check user information
+
+GET {{baseUrl}}/user/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTgwMjg0MiwianRpIjoiYzNiMTE5YjYtNjg3ZC00MGQ5LTg3MmYtMTdhODFkNmM3ODdhIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNzY1ODAyODQyLCJjc3JmIjoiOTAyZTUxZGEtYzdiNC00MTQ4LTgyNWYtZmQzZGIxYzZhNGUwIiwiZXhwIjoxNzY1ODA2NDQyLCJ1c2VyX3R5cGUiOiJ1c2VyIiwicGhvbmUiOiIyNTQ3MTIzNDU2NzgiLCJlbWFpbCI6ImpvaG4ua2FtYXVAZW1haWwuY29tIn0.gHN0Gh12q9JY1XgXuOJqzkOP8adVNxmSu-BL3aIPqaA
+
+###############################################
+# 8. GET USER TRANSACTIONS
+###############################################
+# See all transactions for the user with pagination
+
+GET {{baseUrl}}/user/transactions?page=1&per_page=10
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTgwMjg0MiwianRpIjoiYzNiMTE5YjYtNjg3ZC00MGQ5LTg3MmYtMTdhODFkNmM3ODdhIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNzY1ODAyODQyLCJjc3JmIjoiOTAyZTUxZGEtYzdiNC00MTQ4LTgyNWYtZmQzZGIxYzZhNGUwIiwiZXhwIjoxNzY1ODA2NDQyLCJ1c2VyX3R5cGUiOiJ1c2VyIiwicGhvbmUiOiIyNTQ3MTIzNDU2NzgiLCJlbWFpbCI6ImpvaG4ua2FtYXVAZW1haWwuY29tIn0.gHN0Gh12q9JY1XgXuOJqzkOP8adVNxmSu-BL3aIPqaA
+###############################################
+# 9. GET VENDOR PROFILE
+###############################################
+# Check vendor information and business details
+
+GET {{baseUrl}}/merchant/profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTgwMjg0MiwianRpIjoiYzNiMTE5YjYtNjg3ZC00MGQ5LTg3MmYtMTdhODFkNmM3ODdhIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNzY1ODAyODQyLCJjc3JmIjoiOTAyZTUxZGEtYzdiNC00MTQ4LTgyNWYtZmQzZGIxYzZhNGUwIiwiZXhwIjoxNzY1ODA2NDQyLCJ1c2VyX3R5cGUiOiJ1c2VyIiwicGhvbmUiOiIyNTQ3MTIzNDU2NzgiLCJlbWFpbCI6ImpvaG4ua2FtYXVAZW1haWwuY29tIn0.gHN0Gh12q9JY1XgXuOJqzkOP8adVNxmSu-BL3aIPqaA
+###############################################
+# 10. GET VENDOR TRANSACTIONS
+###############################################
+# See all transactions for the vendor with pagination
+
+GET {{baseUrl}}/merchant/transactions?page=1&per_page=10
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTgwMjg0MiwianRpIjoiYzNiMTE5YjYtNjg3ZC00MGQ5LTg3MmYtMTdhODFkNmM3ODdhIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNzY1ODAyODQyLCJjc3JmIjoiOTAyZTUxZGEtYzdiNC00MTQ4LTgyNWYtZmQzZGIxYzZhNGUwIiwiZXhwIjoxNzY1ODA2NDQyLCJ1c2VyX3R5cGUiOiJ1c2VyIiwicGhvbmUiOiIyNTQ3MTIzNDU2NzgiLCJlbWFpbCI6ImpvaG4ua2FtYXVAZW1haWwuY29tIn0.gHN0Gh12q9JY1XgXuOJqzkOP8adVNxmSu-BL3aIPqaA
+###############################################
+# NOTES FOR TESTING
+###############################################
+# 1. Run seed_data.py first to populate database
+#    python seed_data.py
+#
+# 2. Start Flask app
+#    python app.py
+#
+# 3. Step 1: Click "Send Request" on LOGIN AS USER (request #1)
+#    This will return an access_token
+#
+# 4. Step 2: Copy the access_token value
+#    It will be a long string in the response
+#
+# 5. Step 3: Replace the Authorization tokens in requests 2-3 with your token
+#    Look for: Authorization: Bearer <paste_here>
+#
+# 6. Repeat for vendor login (request #4) for requests 5-6
+#
+# ALTERNATIVE: Use @token variable (easier)
+# Uncomment the lines below after first login:
+# @token = <paste_token_from_login_response>
+# Then use: Authorization: Bearer {{token}}
+#
+# WHAT TO CHECK IN RESPONSES:
+# ✅ User Analytics should show:
+#    - top_merchants with business_name (e.g., "Naivas Supermarket")
+#    - category from MCC (e.g., "Grocery Stores & Supermarkets")
+#    - spending_summary with totals
+#    - weekday_patterns (Sunday-Saturday)
+#    - insights with personalized analysis
+#
+# ✅ Vendor Analytics should show:
+#    - cash_flow (incoming vs outgoing)
+#    - net_flow with status (surplus/deficit)
+#    - top_customers (anonymized)
+#    - outflow_breakdown by reason (refunds, transfers, etc.)
+#    - spending_ratio showing retention percentage
+#    - weekly_performance trends
+
+
+###############################################
+# 🔴 ADMIN ANALYTICS (NEW!)
+###############################################
+
+### ADMIN: Login (use user token for now, add admin later)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+### ADMIN: Get Complete Dashboard Overview
+# Shows: total vendors, total users, top vendors, top users, growth chart
+GET {{baseUrl}}/admin/metrics/overview?days=30
+Authorization: Bearer YOUR_TOKEN_HERE
+
+
+### ADMIN: Get Merchant Insights
+# Shows: top merchants by volume, top by success rate, total count
+GET {{baseUrl}}/admin/metrics/merchants?limit=5
+Authorization: Bearer YOUR_TOKEN_HERE
+
+
+### ADMIN: Get User Insights
+# Shows: user growth over time, top active users, top spenders
+GET {{baseUrl}}/admin/metrics/users?days=30&limit=5
+Authorization: Bearer YOUR_TOKEN_HERE
+

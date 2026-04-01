@@ -10,6 +10,75 @@ class QR_utils():
     def __init__(self, vendor :Vendor):
         self.vendor = vendor
         self.validate_vendor_data()
+    
+    @staticmethod
+    def calculate_crc(payload):
+        """Calculate CRC-16-CCITT checksum (static method - no vendor needed)"""
+        crc = 0xFFFF
+        
+        for byte in payload.encode('utf-8'):
+            crc ^= byte << 8
+            
+            for _ in range(8):
+                if crc & 0x8000:
+                    crc = (crc << 1) ^ 0x1021
+                else:
+                    crc <<= 1
+                crc &= 0xFFFF
+        
+        return f"{crc:04X}"
+    
+    @staticmethod
+    def parse_payload(payload):
+        """Parse CBK-compliant QR payload (static method - no vendor needed)"""
+        if not payload or len(payload) < 20:
+            raise ValueError("Invalid payload: too short")
+        
+        fields = {}
+        i = 0
+        
+        try:
+            while i < len(payload) - 6:  # Stop before CRC field
+                if i + 4 > len(payload):
+                    break
+                    
+                field_id = payload[i:i+2]
+                field_length = int(payload[i+2:i+4])
+                field_value = payload[i+4:i+4+field_length]
+                fields[field_id] = field_value
+                i += 4 + field_length
+        except (ValueError, IndexError) as e:
+            raise ValueError(f"Malformed payload: {str(e)}")
+        
+        return {
+            'format_indicator': fields.get('00'),
+            'business_shortcode': fields.get('02'),
+            'mcc': fields.get('52'),
+            'currency': fields.get('53'),
+            'amount': fields.get('54'),
+            'country_code': fields.get('58'),
+            'merchant_name': fields.get('59'),
+            'store_label': fields.get('60'),
+            'reference_number': fields.get('62'),
+            'crc_field': fields.get('63')
+        }
+    
+    @staticmethod
+    def validate_crc(payload):
+        """Verify CRC checksum in payload (static method)"""
+        if len(payload) < 4:
+            return False
+        
+        
+        provided_crc = payload[-4:]
+        
+        # Rebuild payload without CRC and calculate expected CRC
+        payload_without_crc = payload[:-4]
+        payload_for_calculation = payload_without_crc + "0000"
+        
+        expected_crc = QR_utils.calculate_crc(payload_for_calculation)
+        
+        return provided_crc.upper() == expected_crc.upper()
 
     def validate_vendor_data(self):
         """Ensure vendor has all required fields for CBK compliance"""
@@ -54,24 +123,29 @@ class QR_utils():
         
 
     def _calculate_crc(self, payload):
-        """Calculating CRC-16-CCITT checksum for CBK compliance"""
+        """Instance wrapper for static CRC calculation"""
+        return QR_utils.calculate_crc(payload)
+    
+    
+    def parse_cbk_payload(self, payload):
+        """Extract fields from CBK-compliant payload"""
+        fields = {}
+        i = 0
+        while i < len(payload):
+            field_id = payload[i: i+ 2]
+            field_length = int(payload[i+2:i+4])
+            field_value = payload[i+4: i+4+field_length]
+            fields[field_id] = field_value
+            i +=4 + field_length
+        
+        return {
+            'business_shortcode' : fields.get('02'),
+            'amount': fields.get('54'),
+            'reference_number':fields.get('62'),
+            'currency': fields.get('53'),
+            'merchant_name': fields.get('59')
 
-        def crc16_ccitt(data):
-            crc = 0xFFF
-
-            for byte in data.encode('utf-8'):
-                crc ^= byte << 8
-
-                for _ in range(8):
-                    if crc & 0x8000:
-                        crc = (crc << 1) ^ 0x1021
-                    else:
-                        crc <<=1
-                    crc &=0xFFF
-
-            return f"{crc:04x}"
-            
-        return crc16_ccitt(payload)
+        }
 
 
     def _create_qr_image(self, payload):

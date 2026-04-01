@@ -101,11 +101,18 @@ htmlcov/
 # Ignore manual test/playground files
 backend/test_qr_utils.py
 backend/test_*.py
+backend/check_qr.py
+backend/generate_secrets.py
 
 # ===== Backup Files =====
 *.bak
 *.backup
 *.tmp
+
+# ===== Local Build Caches =====
+caches/
+daemon/
+native/
 
 # ===== Documentation Builds =====
 docs/_build/
