@@ -23,7 +23,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-docker-compose.yml
 Dockerfile
 
 # ===== Virtual Environment =====

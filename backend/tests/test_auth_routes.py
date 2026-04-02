@@ -4,7 +4,7 @@ from models import User, Vendor
 def _user_payload():
     return {
         'name': 'Auth User',
-        'phone_number': '254700100001',
+        'phone_number': '254700100004',
         'email': 'auth.user@example.com',
         'password': 'password123',
     }

@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify,g
 from models import User, Vendor
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt, get_jti
 from extensions import db
-import datetime
+from datetime import datetime, timezone
 
 auth_bp = Blueprint('auth',__name__, url_prefix='/api/auth')
 
@@ -210,6 +210,9 @@ def login():
         # Check if it's a user login
         user = User.query.filter_by(email=email).first()
         if user and user.check_password(password):
+            user.last_login = datetime.now(timezone.utc)
+            db.session.commit()
+
             access_token = create_access_token(
                 identity=str(user.id),
                 additional_claims={
@@ -234,6 +237,9 @@ def login():
         # Check if it's a vendor login
         vendor = Vendor.query.filter_by(email=email).first()
         if vendor and vendor.check_password(password):
+            vendor.last_login = datetime.now(timezone.utc)
+            db.session.commit()
+
             access_token = create_access_token(
                 identity=str(vendor.id),
                 additional_claims={
@@ -290,24 +296,24 @@ def logout():
         user_email = claims.get('email')
         
         # Optional: Log logout event for security monitoring
-        print(f"Logout: {user_type} ID {current_user_id} ({user_email}) at {datetime.utcnow()}")
+        print(f"Logout: {user_type} ID {current_user_id} ({user_email}) at {datetime.now(timezone.utc)}")
         
         # You could also update last_logout timestamp in user/vendor table
         if user_type == 'user':
             user = User.query.get(current_user_id)
             if user:
-                user.last_logout = datetime.utcnow()
+                user.last_logout = datetime.now(timezone.utc)
                 db.session.commit()
         elif user_type == 'vendor':
             vendor = Vendor.query.get(current_user_id)
             if vendor:
-                vendor.last_logout = datetime.utcnow()
+                vendor.last_logout = datetime.now(timezone.utc)
                 db.session.commit()
         
         return jsonify({
             'message': 'Logged out successfully',
             'user_type': user_type,
-            'timestamp': datetime.utcnow().isoformat()
+            'timestamp': datetime.now(timezone.utc).isoformat()
         }), 200
         
     except Exception as e:
