@@ -4,12 +4,30 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _normalize_database_url(raw_url: str) -> str:
+    """Normalize DATABASE_URL for SQLAlchemy/psycopg2 compatibility."""
+    if not raw_url:
+        raise ValueError("DATABASE_URL must be set in environment variables")
+
+    db_url = raw_url.strip().strip('"').strip("'")
+
+    # Some providers still expose postgres://; SQLAlchemy expects postgresql://
+    if db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+    # Optional override for providers that require SSL (for example, DB_SSLMODE=require)
+    db_sslmode = os.getenv("DB_SSLMODE", "").strip()
+    if db_sslmode and "sslmode=" not in db_url:
+        separator = "&" if "?" in db_url else "?"
+        db_url = f"{db_url}{separator}sslmode={db_sslmode}"
+
+    return db_url
+
+
 class DatabaseConfigs():
     """Database Settings"""
-    
-    SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
-    if not SQLALCHEMY_DATABASE_URL:
-        raise ValueError("DATABASE_URL must be set in environment variables")
+
+    SQLALCHEMY_DATABASE_URL = _normalize_database_url(os.getenv("DATABASE_URL"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 class FlaskConfigs():

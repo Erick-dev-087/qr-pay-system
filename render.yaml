@@ -5,7 +5,7 @@ services:
     rootDir: backend
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn wsgi:app
+    startCommand: gunicorn --bind 0.0.0.0:$PORT wsgi:app
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
