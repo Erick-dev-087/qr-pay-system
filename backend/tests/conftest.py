@@ -53,6 +53,8 @@ def make_vendor(app):
     def _make_vendor(
         name='Test Vendor',
         shortcode='174379',
+        shortcode_type='TILL',
+        paybill_account_number=None,
         phone='254700000002',
         email='vendor@example.com',
         password='vendorpass',
@@ -62,6 +64,8 @@ def make_vendor(app):
             vendor = Vendor(
                 name=name,
                 business_shortcode=shortcode,
+                shortcode_type=shortcode_type,
+                paybill_account_number=paybill_account_number,
                 merchant_id='MERCH001',
                 mcc='5812',
                 store_label='Main Branch',

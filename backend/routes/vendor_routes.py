@@ -16,6 +16,7 @@ from utils.vendor_analytics_utils import (
 )
 
 vendor_bp = Blueprint('vendor',__name__)
+VALID_SHORTCODE_TYPES = {'TILL', 'PAYBILL'}
 
 @vendor_bp.route('/profile', methods=['GET'])
 @jwt_required()
@@ -39,6 +40,8 @@ def get_profile():
             "id": vendor.id,
             "name": vendor.name,
             "business_shortcode": vendor.business_shortcode,
+            "shortcode_type": vendor.shortcode_type,
+            "paybill_account_number": vendor.paybill_account_number,
             "merchant_id": vendor.merchant_id,
             "mcc": vendor.mcc,
             "store_label": vendor.store_label,
@@ -87,6 +90,21 @@ def update_profile():
             
             vendor.business_shortcode = bs
 
+        if "shortcode_type" in data:
+            shortcode_type = str(data["shortcode_type"]).strip().upper()
+            if shortcode_type not in VALID_SHORTCODE_TYPES:
+                return jsonify({'error': 'shortcode_type must be TILL or PAYBILL'}), 400
+            vendor.shortcode_type = shortcode_type
+
+        if "paybill_account_number" in data:
+            raw_value = data["paybill_account_number"]
+            paybill_account_number = None if raw_value is None else str(raw_value).strip()
+            vendor.paybill_account_number = paybill_account_number or None
+
+        # Keep data consistent when switching away from PAYBILL.
+        if vendor.shortcode_type == 'TILL':
+            vendor.paybill_account_number = None
+
         if "email" in data:
             email = data['email'].strip()
             if not email:
@@ -111,6 +129,8 @@ def update_profile():
                 "id": vendor.id,
                 "name": vendor.name,
                 "business_shortcode": vendor.business_shortcode,
+                "shortcode_type": vendor.shortcode_type,
+                "paybill_account_number": vendor.paybill_account_number,
                 "merchant_id": vendor.merchant_id,
                 "mcc": vendor.mcc,
                 "store_label": vendor.store_label,

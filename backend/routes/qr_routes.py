@@ -162,6 +162,8 @@ def scan_qr():
                 'id': vendor.id,
                 'name': vendor.name,
                 'business_shortcode': vendor.business_shortcode,
+                'shortcode_type': vendor.shortcode_type,
+                'paybill_account_number': vendor.paybill_account_number,
                 'store_label': vendor.store_label
             },
             'qr_code': {
@@ -169,7 +171,9 @@ def scan_qr():
                 'type': qr_record.qr_type.value,
                 'amount': parsed.get('amount'),  # May be None for static QR
                 'reference': parsed.get('reference_number'),
-                'currency': parsed.get('currency', '404')
+                'currency': parsed.get('currency', '404'),
+                'shortcode_type': parsed.get('shortcode_type'),
+                'paybill_account_number': parsed.get('paybill_account_number')
             },
             'next_step': 'Use /api/payment/initiate to complete the payment'
         }), 200
@@ -236,6 +240,8 @@ def validate_qr():
                 'id': vendor.id,
                 'name': vendor.name,
                 'business_shortcode': vendor.business_shortcode,
+                'shortcode_type': vendor.shortcode_type,
+                'paybill_account_number': vendor.paybill_account_number,
                 'store_label': vendor.store_label
             },
             'qr_code': {
@@ -243,7 +249,9 @@ def validate_qr():
                 'type': qr_record.qr_type.value,
                 'amount': parsed.get('amount'),  # May be None for static QR
                 'reference': parsed.get('reference_number'),
-                'currency': parsed.get('currency', 'KES')
+                'currency': parsed.get('currency', 'KES'),
+                'shortcode_type': parsed.get('shortcode_type'),
+                'paybill_account_number': parsed.get('paybill_account_number')
             }
         }), 200
         

@@ -57,7 +57,46 @@ def test_register_vendor_success(client):
 
     assert response.status_code == 201
     assert data['vendor']['business_shortcode'] == 'AUTH001'
+    assert data['vendor']['shortcode_type'] == 'TILL'
     assert 'access_token' in data
+
+
+def test_register_vendor_paybill_success(client):
+    payload = _vendor_payload()
+    payload.update(
+        {
+            'business_shortcode': 'AUTH002',
+            'email': 'auth.vendor.paybill@example.com',
+            'phone': '254700100022',
+            'shortcode_type': 'PAYBILL',
+            'paybill_account_number': 'INV-ACCOUNT-001',
+        }
+    )
+
+    response = client.post('/api/auth/register/vendor', json=payload)
+    data = response.get_json()
+
+    assert response.status_code == 201
+    assert data['vendor']['shortcode_type'] == 'PAYBILL'
+    assert data['vendor']['paybill_account_number'] == 'INV-ACCOUNT-001'
+
+
+def test_register_vendor_rejects_invalid_shortcode_type(client):
+    payload = _vendor_payload()
+    payload.update(
+        {
+            'business_shortcode': 'AUTH003',
+            'email': 'auth.vendor.invalid-type@example.com',
+            'phone': '254700100033',
+            'shortcode_type': 'P2P',
+        }
+    )
+
+    response = client.post('/api/auth/register/vendor', json=payload)
+    data = response.get_json()
+
+    assert response.status_code == 400
+    assert 'shortcode_type' in data['error']
 
 
 def test_login_user_success(client):

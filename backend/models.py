@@ -44,6 +44,8 @@ class Vendor(db.Model):
     name = db.Column(db.String(100), nullable=False)
     business_name = db.Column(db.String(150), nullable=True)  # Optional business/store name
     business_shortcode = db.Column(db.String(20), unique=True, nullable=False) # Till, Pochi or Paybill
+    shortcode_type = db.Column(db.String(20), nullable=False, default="TILL")  # TILL or PAYBILL
+    paybill_account_number = db.Column(db.String(50), nullable=True)  # Optional account reference for Paybill
     merchant_id = db.Column(db.String(100), nullable = True) #For CBK/PSP routings
     mcc = db.Column(db.String(8),nullable = True) # Merchant Category code
     country_code = db.Column(db.String(2), default = "KE")
@@ -95,6 +97,16 @@ class Vendor(db.Model):
             return mcc_map.get(self.mcc, "Other")
         except (FileNotFoundError, json.JSONDecodeError):
             return "Other"
+
+    def get_shortcode_type(self):
+        """Return normalized shortcode type."""
+        return (self.shortcode_type or "TILL").strip().upper()
+
+    def is_till(self):
+        return self.get_shortcode_type() == "TILL"
+
+    def is_paybill(self):
+        return self.get_shortcode_type() == "PAYBILL"
         
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

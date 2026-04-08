@@ -160,10 +160,9 @@ def initiate_payment():
         db.session.add(payment_session)
         db.session.commit()
         
-        #Determine transaction type based on vendor's business type
-        # Default to BILL_PAYMENT, can be customized per vendor
-        transaction_type = getattr(payee_vendor, 'payment_type', 'bill_payment')
-        if transaction_type.lower() == 'goods':
+        # Till is goods/services; Paybill is bill payment.
+        shortcode_type = (getattr(payee_vendor, 'shortcode_type', 'TILL') or 'TILL').upper()
+        if shortcode_type == 'TILL':
             daraja_transaction_type = TransactionType.BUY_GOODS
         else:
             daraja_transaction_type = TransactionType.BILL_PAYMENT

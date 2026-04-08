@@ -104,6 +104,9 @@ backend/test_qr_utils.py
 backend/test_*.py
 backend/check_qr.py
 backend/generate_secrets.py
+backend/_extract_pdf.py
+backend/QR_ENCODING.txt
+
 
 # ===== Backup Files =====
 *.bak

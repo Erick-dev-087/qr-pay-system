@@ -6,9 +6,20 @@ from datetime import datetime, timezone
 
 auth_bp = Blueprint('auth',__name__, url_prefix='/api/auth')
 
+VALID_SHORTCODE_TYPES = {'TILL', 'PAYBILL'}
+
+
+def _normalize_shortcode_type(raw_value):
+    value = (raw_value or 'TILL').strip().upper()
+    if value not in VALID_SHORTCODE_TYPES:
+        raise ValueError('shortcode_type must be either TILL or PAYBILL')
+    return value
+
 @auth_bp.route('/register/user', methods=['POST'])
 def register_user():
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Invalid or missing JSON payload'}), 400
 
     required_fields = ['name', 'phone_number','email','password']
     for field in required_fields:
@@ -17,6 +28,13 @@ def register_user():
         
         if not data[field]:
             return jsonify({'error': f'Field {field} cannot be empty'}), 400
+
+    if not isinstance(data['name'], str) or not isinstance(data['phone_number'], str) or not isinstance(data['email'], str) or not isinstance(data['password'], str):
+        return jsonify({'error': 'Invalid field types in request payload'}), 400
+
+    data['name'] = data['name'].strip()
+    data['phone_number'] = data['phone_number'].strip()
+    data['email'] = data['email'].strip().lower()
 
     if not data['email'].strip() or '@' not in data['email']:
         return jsonify({'error': 'Invalid email format'}), 400
@@ -108,6 +126,20 @@ def register_vendor():
         if 'mcc' in data and data['mcc']:
             if len(data['mcc']) != 4 and len(data['mcc']) != 8:
                 return jsonify({'error': 'MCC must be 4 or 8 characters'}), 400
+
+        try:
+            shortcode_type = _normalize_shortcode_type(data.get('shortcode_type'))
+        except ValueError as exc:
+            return jsonify({'error': str(exc)}), 400
+
+        paybill_account_number = data.get('paybill_account_number')
+        if paybill_account_number is not None:
+            paybill_account_number = str(paybill_account_number).strip()
+            if not paybill_account_number:
+                paybill_account_number = None
+
+        if shortcode_type == 'TILL':
+            paybill_account_number = None
             
         # Check for existing vendor
         if Vendor.query.filter_by(email=data['email']).first():
@@ -132,6 +164,8 @@ def register_vendor():
         new_vendor = Vendor(
             name=data['name'].strip(),
             business_shortcode=data['business_shortcode'].strip(),
+            shortcode_type=shortcode_type,
+            paybill_account_number=paybill_account_number,
             merchant_id=data['merchant_id'].strip(),
             mcc=data['mcc'].strip(),
             store_label=data['store_label'].strip(),
@@ -152,6 +186,7 @@ def register_vendor():
             additional_claims={
                 'user_type': 'vendor',
                 'business_shortcode': new_vendor.business_shortcode,
+                'shortcode_type': new_vendor.shortcode_type,
                 'merchant_id': new_vendor.merchant_id,
                 'phone': new_vendor.phone,
                 'email': new_vendor.email
@@ -166,6 +201,8 @@ def register_vendor():
                 'id': new_vendor.id,
                 'name': new_vendor.name,
                 'business_shortcode': new_vendor.business_shortcode,
+                'shortcode_type': new_vendor.shortcode_type,
+                'paybill_account_number': new_vendor.paybill_account_number,
                 'merchant_id':new_vendor.merchant_id,
                 'mcc': new_vendor.mcc,
                 'store_label': new_vendor.store_label,
@@ -245,6 +282,7 @@ def login():
                 additional_claims={
                     'user_type': 'vendor',
                     'business_shortcode': vendor.business_shortcode,
+                    'shortcode_type': vendor.shortcode_type,
                     'merchant_id': vendor.merchant_id,
                     'phone': vendor.phone,
                     'email': vendor.email
@@ -259,6 +297,8 @@ def login():
                     'id': vendor.id,
                     'name': vendor.name,
                     'business_shortcode': vendor.business_shortcode,
+                    'shortcode_type': vendor.shortcode_type,
+                    'paybill_account_number': vendor.paybill_account_number,
                     'merchant_id': vendor.merchant_id,
                     'mcc': vendor.mcc,
                     'store_label': vendor.store_label,
