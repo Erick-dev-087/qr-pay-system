@@ -33,9 +33,9 @@ def test_generate_static_qr_success(client, app, make_vendor, auth_header, monke
         )
         db.session.add(qr)
         db.session.commit()
-        return qr
+        return None, 'STATIC-PAYLOAD', qr
 
-    monkeypatch.setattr(qr_routes_module.QR_utils, 'generate_merchant_qr', _fake_generate_static)
+    monkeypatch.setattr(qr_routes_module.QR_utils, 'generate_till_qr', _fake_generate_static)
 
     response = client.post('/api/qr/generate', json={'qr_type': 'STATIC'}, headers=auth_header(vendor_id, 'vendor'))
     data = response.get_json()
@@ -54,7 +54,12 @@ def test_scan_qr_success_creates_scan_log(client, app, make_user, make_vendor, m
     monkeypatch.setattr(
         qr_routes_module.QR_utils,
         'parse_payload',
-        staticmethod(lambda _payload: {'business_shortcode': 'QSCAN1', 'amount': None, 'reference_number': None, 'currency': '404'}),
+        staticmethod(lambda _payload: {
+            'psp_accounts': {'28': {'account': 'QSCAN1'}},
+            'amount': None,
+            'additional_data': None,
+            'currency': '404',
+        }),
     )
 
     response = client.post('/api/qr/scan', json={'payload': payload}, headers=auth_header(user_id, 'user'))
@@ -76,7 +81,12 @@ def test_scan_qr_blocks_vendor_scanning_own_qr(client, make_vendor, make_qr, aut
     monkeypatch.setattr(
         qr_routes_module.QR_utils,
         'parse_payload',
-        staticmethod(lambda _payload: {'business_shortcode': 'QSELF1', 'amount': None, 'reference_number': None, 'currency': '404'}),
+        staticmethod(lambda _payload: {
+            'psp_accounts': {'28': {'account': 'QSELF1'}},
+            'amount': None,
+            'additional_data': None,
+            'currency': '404',
+        }),
     )
 
     response = client.post('/api/qr/scan', json={'payload': payload}, headers=auth_header(vendor_id, 'vendor'))
@@ -94,7 +104,12 @@ def test_validate_qr_success(client, make_user, make_vendor, make_qr, auth_heade
     monkeypatch.setattr(
         qr_routes_module.QR_utils,
         'parse_payload',
-        staticmethod(lambda _payload: {'business_shortcode': 'QVAL01', 'amount': 120, 'reference_number': 'REF1', 'currency': '404'}),
+        staticmethod(lambda _payload: {
+            'psp_accounts': {'28': {'account': 'QVAL01'}},
+            'amount': '120.00',
+            'additional_data': '0104REF1',
+            'currency': '404',
+        }),
     )
 
     response = client.post('/api/qr/validate', json={'payload': payload}, headers=auth_header(user_id, 'user'))

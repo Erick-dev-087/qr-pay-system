@@ -58,14 +58,19 @@ def generate_qrCode():
         qr_generator = QR_utils(vendor)
         
         if qr_type == QR_Type.STATIC:
-            qr_record = qr_generator.generate_merchant_qr(save_to_db=True)
+            _, _, qr_record = qr_generator.generate_till_qr(save_to_db=True)
         else:
             
             amount = data.get('amount')
             if not amount:
                 return jsonify({'error': 'Amount is required for Dynamic QR'}), 400
             
-            qr_record = qr_generator.generate_transaction_qr(amount=amount,reference_number=None, save_to_db=True)
+            _, _, qr_record = qr_generator.generate_transaction_qr(
+                trx_type="BG",
+                amount=amount,
+                reference=None,
+                save_to_db=True,
+            )
             
 
         return jsonify({
@@ -116,7 +121,9 @@ def scan_qr():
             return jsonify({'error': f'Invalid QR format: {str(e)}'}), 400
         
         # 5. Validate required fields
-        business_shortcode = parsed.get('business_shortcode')
+        psp_accounts = parsed.get('psp_accounts') or {}
+        account_block = psp_accounts.get('28') or psp_accounts.get('26') or {}
+        business_shortcode = account_block.get('account')
         if not business_shortcode:
             return jsonify({'error': 'Invalid QR: missing business shortcode'}), 400
         
@@ -170,10 +177,10 @@ def scan_qr():
                 'id': qr_record.id,
                 'type': qr_record.qr_type.value,
                 'amount': parsed.get('amount'),  # May be None for static QR
-                'reference': parsed.get('reference_number'),
+                'reference': parsed.get('additional_data'),
                 'currency': parsed.get('currency', '404'),
-                'shortcode_type': parsed.get('shortcode_type'),
-                'paybill_account_number': parsed.get('paybill_account_number')
+                'shortcode_type': vendor.shortcode_type,
+                'paybill_account_number': vendor.paybill_account_number
             },
             'next_step': 'Use /api/payment/initiate to complete the payment'
         }), 200
@@ -210,7 +217,9 @@ def validate_qr():
             return jsonify({'error': f'Invalid QR format: {str(e)}'}), 400
             
         
-        business_shortcode = parsed.get('business_shortcode')
+        psp_accounts = parsed.get('psp_accounts') or {}
+        account_block = psp_accounts.get('28') or psp_accounts.get('26') or {}
+        business_shortcode = account_block.get('account')
         if not business_shortcode:
             return jsonify({'error': 'Invalid QR: missing business shortcode'}), 400
             
@@ -248,10 +257,10 @@ def validate_qr():
                 'id': qr_record.id,
                 'type': qr_record.qr_type.value,
                 'amount': parsed.get('amount'),  # May be None for static QR
-                'reference': parsed.get('reference_number'),
-                'currency': parsed.get('currency', 'KES'),
-                'shortcode_type': parsed.get('shortcode_type'),
-                'paybill_account_number': parsed.get('paybill_account_number')
+                'reference': parsed.get('additional_data'),
+                'currency': parsed.get('currency', '404'),
+                'shortcode_type': vendor.shortcode_type,
+                'paybill_account_number': vendor.paybill_account_number
             }
         }), 200
         

@@ -46,6 +46,12 @@ class Vendor(db.Model):
     business_shortcode = db.Column(db.String(20), unique=True, nullable=False) # Till, Pochi or Paybill
     shortcode_type = db.Column(db.String(20), nullable=False, default="TILL")  # TILL or PAYBILL
     paybill_account_number = db.Column(db.String(50), nullable=True)  # Optional account reference for Paybill
+    airtel_number = db.Column(db.String(20), nullable=True)  # Optional Airtel Money number for slot 29
+    kcb_account = db.Column(db.String(30), nullable=True)  # Optional KCB account for slot 30
+    equity_account = db.Column(db.String(30), nullable=True)  # Optional Equity account for slot 31
+    coop_account = db.Column(db.String(30), nullable=True)  # Optional Co-op account for slot 32
+    absa_account = db.Column(db.String(30), nullable=True)  # Optional ABSA account for slot 33
+    ncba_account = db.Column(db.String(30), nullable=True)  # Optional NCBA account for slot 34
     merchant_id = db.Column(db.String(100), nullable = True) #For CBK/PSP routings
     mcc = db.Column(db.String(8),nullable = True) # Merchant Category code
     country_code = db.Column(db.String(2), default = "KE")

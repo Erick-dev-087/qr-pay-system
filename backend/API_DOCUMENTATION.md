@@ -762,7 +762,7 @@ Generates a new QR code for the authenticated vendor.
 - `404` - Vendor not found
 
 **Related Utilities (from `utils/qr_utils.py`):**
-- `QR_utils.generate_merchant_qr()` - Static QR generation
+- `QR_utils.generate_till_qr()` - Static Till QR generation
 - `QR_utils.generate_transaction_qr()` - Dynamic QR generation
 - CBK-compliant payload with CRC-16-CCITT checksum
 
@@ -1359,8 +1359,8 @@ CBK-compliant QR code generator following EMVCo format.
 
 | Method | Description |
 |--------|-------------|
-| `generate_merchant_qr()` | Static QR without amount (customer enters) |
-| `generate_fixed_amount_qr()` | Static QR with fixed amount |
+| `generate_till_qr()` | Static Till QR without amount (customer enters) |
+| `generate_paybill_qr(amount, account_number)` | Paybill QR with optional amount and account number |
 | `generate_transaction_qr()` | Dynamic QR for specific transaction |
 | `calculate_crc()` | CRC-16-CCITT checksum (static) |
 | `validate_crc()` | Verify payload checksum (static) |

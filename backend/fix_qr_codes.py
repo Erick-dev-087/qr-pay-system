@@ -63,7 +63,7 @@ def fix_qr_codes():
             try:
                 # Use QR_utils to generate CBK-compliant payload (static QR, no amount)
                 qr_generator = QR_utils(vendor)
-                payload_data = qr_generator._build_cbk_payload()  # Static QR (no fixed amount)
+                _, payload_data, _ = qr_generator.generate_till_qr(save_to_db=False)
                 
                 # Build payload_json from vendor data
                 payload_json = {
