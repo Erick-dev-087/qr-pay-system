@@ -50,6 +50,20 @@ def test_generate_paybill_qr_embeds_amount_and_account_number():
     assert QR_utils.validate_crc(payload) is True
 
 
+def test_amount_zero_is_dynamic_not_static():
+    vendor = _build_vendor('600000', name='Zero Amount Vendor', mcc='4900')
+
+    qr = QR_utils(vendor)
+    _image, payload, _record = qr.generate_transaction_qr(
+        trx_type='BG', amount=0, reference=None, save_to_db=False
+    )
+    parsed = QR_utils.parse_payload(payload)
+
+    assert parsed['point_of_initiation'] == '12'
+    assert parsed['amount'] == '0.00'
+    assert QR_utils.validate_crc(payload) is True
+
+
 def test_generate_transaction_qr_rejects_unknown_trx_type():
     vendor = _build_vendor('174379')
     qr = QR_utils(vendor)
@@ -72,6 +86,29 @@ def test_interoperable_slots_include_airtel_and_equity_when_configured():
     psp = parsed.get('psp_accounts') or {}
 
     assert psp.get('28', {}).get('account') == '9188963'
-    assert psp.get('29', {}).get('account') == '0733123456'
-    assert psp.get('31', {}).get('account') == 'EQ-ACC-001'
+    assert psp.get('29', {}).get('account') == 'EQ-ACC-001'
+    assert psp.get('30', {}).get('account') == '0733123456'
     assert QR_utils.validate_crc(payload) is True
+
+
+def test_field60_parsed_as_city_when_not_equity_profile():
+    vendor = _build_vendor('9188963', name='City Merchant')
+
+    qr = QR_utils(vendor)
+    _image, payload, _record = qr.generate_till_qr(save_to_db=False)
+    parsed = QR_utils.parse_payload(payload)
+
+    assert parsed.get('merchant_city') == 'Thika'
+    assert parsed.get('equity_account') is None
+
+
+def test_field60_parsed_as_equity_account_for_equity_profile():
+    vendor = _build_vendor('9188963', name='Equity Merchant')
+    vendor.equity_account = 'EQ-ACC-001'
+
+    qr = QR_utils(vendor)
+    _image, payload, _record = qr.generate_till_qr(save_to_db=False)
+    parsed = QR_utils.parse_payload(payload)
+
+    assert parsed.get('equity_account') == 'EQ-ACC-001'
+    assert parsed.get('merchant_city') is None

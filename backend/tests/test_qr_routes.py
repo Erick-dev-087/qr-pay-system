@@ -118,3 +118,47 @@ def test_validate_qr_success(client, make_user, make_vendor, make_qr, auth_heade
     assert response.status_code == 200
     assert data['valid'] is True
     assert data['vendor']['business_shortcode'] == 'QVAL01'
+
+
+def test_scan_qr_resolves_shortcode_from_slot29(client, make_user, make_vendor, make_qr, auth_header, monkeypatch):
+    user_id = make_user(phone='254700300040', email='slot29.user@example.com')
+    vendor_id = make_vendor(shortcode='QEQ29', email='slot29.vendor@example.com', phone='254700300041')
+    payload = 'VALID-PAYLOAD-SLOT29'
+    make_qr(vendor_id, payload=payload)
+
+    monkeypatch.setattr(qr_routes_module.QR_utils, 'validate_crc', staticmethod(lambda _payload: True))
+    monkeypatch.setattr(
+        qr_routes_module.QR_utils,
+        'parse_payload',
+        staticmethod(lambda _payload: {
+            'psp_accounts': {'29': {'account': 'QEQ29'}},
+            'amount': None,
+            'additional_data': None,
+            'currency': '404',
+        }),
+    )
+
+    response = client.post('/api/qr/scan', json={'payload': payload}, headers=auth_header(user_id, 'user'))
+    assert response.status_code == 200
+
+
+def test_validate_qr_resolves_shortcode_from_slot31(client, make_user, make_vendor, make_qr, auth_header, monkeypatch):
+    user_id = make_user(phone='254700300050', email='slot31.user@example.com')
+    vendor_id = make_vendor(shortcode='QBK31', email='slot31.vendor@example.com', phone='254700300051')
+    payload = 'VALID-PAYLOAD-SLOT31'
+    make_qr(vendor_id, payload=payload)
+
+    monkeypatch.setattr(qr_routes_module.QR_utils, 'validate_crc', staticmethod(lambda _payload: True))
+    monkeypatch.setattr(
+        qr_routes_module.QR_utils,
+        'parse_payload',
+        staticmethod(lambda _payload: {
+            'psp_accounts': {'31': {'account': 'QBK31'}},
+            'amount': '90.00',
+            'additional_data': None,
+            'currency': '404',
+        }),
+    )
+
+    response = client.post('/api/qr/validate', json={'payload': payload}, headers=auth_header(user_id, 'user'))
+    assert response.status_code == 200

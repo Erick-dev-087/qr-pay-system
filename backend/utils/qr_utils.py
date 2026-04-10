@@ -197,7 +197,8 @@ class QR_utils:
             "amount":              f.get("54"),
             "country_code":        f.get("58"),
             "merchant_name":       f.get("59"),
-            "equity_account":      f.get("60"), 
+                "merchant_city":       None,
+                "equity_account":      None,
             "postal_code":         f.get("61"),
             "additional_data":     f.get("62"),
             "language":            f.get("64"),
@@ -216,6 +217,15 @@ class QR_utils:
                     "guid":    sub.get("00"),
                     "account": sub.get("01"),
                 }
+
+        # Interpret field 60 based on provider profile: Equity profile uses
+        # GUID 68 in slot 29 and treats field 60 as account context.
+        field_60 = f.get("60")
+        slot_29 = result["psp_accounts"].get("29") or {}
+        if slot_29.get("guid") == "68":
+            result["equity_account"] = field_60 or slot_29.get("account")
+        else:
+            result["merchant_city"] = field_60
 
         return result
 
@@ -317,7 +327,7 @@ class QR_utils:
         # ── Assemble in Safaricom's exact field order ─────────────────────────
         payload = (
             t("00", "01")                        # Payload format indicator
-            + t("01", "12" if amount else "11")  # 11=static, 12=dynamic
+            + t("01", "12" if amount is not None else "11")  # 11=static, 12=dynamic
             + slot_28                            # Primary merchant account
             + slot_29                            # Interop flag
             + extra_slots                        # Optional Airtel/bank slots
@@ -334,6 +344,9 @@ class QR_utils:
         
         if equity_account:
             payload += t("60", str(equity_account))
+        else:
+            city = (getattr(self.vendor, "store_label", None) or "Nairobi").strip()[:15] or "Nairobi"
+            payload += t("60", city)
 
         payload +=(                
             t("61", "00")                      # Postal code (Safaricom default)
@@ -441,7 +454,7 @@ class QR_utils:
             status: Optional QRStatus filter (ACTIVE, INACTIVE, EXPIRED)
             qr_type: Optional QR_Type filter (STATIC, DYNAMIC)
             
-        Returns:
+            + t("01", "12" if amount is not None else "11")  # 11=static, 12=dynamic
             List of QRCode objects
         """
         query = QRCode.query.filter_by(vendor_id=self.vendor.id)
@@ -458,6 +471,9 @@ class QR_utils:
         Get the active merchant QR (static, no amount) for this vendor
         Typically, each vendor has one permanent merchant QR
         
+        else:
+            city = (getattr(self.vendor, "store_label", None) or "Nairobi").strip()[:15] or "Nairobi"
+            payload += t("60", city)
         Returns:
             QRCode object or None if not found
         """

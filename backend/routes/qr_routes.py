@@ -8,6 +8,25 @@ from datetime import datetime, timezone
 
 qr_bp = Blueprint('qr',__name__)
 
+
+def _extract_business_shortcode_from_payload(parsed_payload):
+    """Resolve merchant account from provider slots in priority/fallback order."""
+    psp_accounts = parsed_payload.get('psp_accounts') or {}
+
+    # Prefer known rails first, then fallback to any populated account slot.
+    preferred_slots = ['28', '29', '30', '31', '32', '33', '34', '26']
+    for slot in preferred_slots:
+        slot_account = (psp_accounts.get(slot) or {}).get('account')
+        if slot_account:
+            return slot_account
+
+    for slot_data in psp_accounts.values():
+        slot_account = (slot_data or {}).get('account')
+        if slot_account:
+            return slot_account
+
+    return None
+
 @qr_bp.route('/generate', methods=['POST'])
 @jwt_required()
 def generate_qrCode():
@@ -121,9 +140,7 @@ def scan_qr():
             return jsonify({'error': f'Invalid QR format: {str(e)}'}), 400
         
         # 5. Validate required fields
-        psp_accounts = parsed.get('psp_accounts') or {}
-        account_block = psp_accounts.get('28') or psp_accounts.get('26') or {}
-        business_shortcode = account_block.get('account')
+        business_shortcode = _extract_business_shortcode_from_payload(parsed)
         if not business_shortcode:
             return jsonify({'error': 'Invalid QR: missing business shortcode'}), 400
         
@@ -217,9 +234,7 @@ def validate_qr():
             return jsonify({'error': f'Invalid QR format: {str(e)}'}), 400
             
         
-        psp_accounts = parsed.get('psp_accounts') or {}
-        account_block = psp_accounts.get('28') or psp_accounts.get('26') or {}
-        business_shortcode = account_block.get('account')
+        business_shortcode = _extract_business_shortcode_from_payload(parsed)
         if not business_shortcode:
             return jsonify({'error': 'Invalid QR: missing business shortcode'}), 400
             
