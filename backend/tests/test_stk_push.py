@@ -151,7 +151,7 @@ def test_payment_flow():
                 elapsed += poll_interval
             
             # Timeout
-            print(f'\n\n❌ TIMEOUT: No callback received after {max_wait} seconds')
+            print(f'\n\n TIMEOUT: No callback received after {max_wait} seconds')
             print('   User may not have entered PIN or payment timed out')
             return False
             

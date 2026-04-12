@@ -68,6 +68,10 @@ INTEROP_SLOTS = [
     {"slot": "34", "field": "ncba_account",   "provider": "ncba",   "uid": "0000007"},
 ]
 
+# In universal profile, keep slot 29 standards-only and publish Equity
+# account via a standard ke.go.qr rail slot.
+UNIVERSAL_EQUITY_SLOT = "35"
+
 
 class QR_utils:
     """
@@ -108,8 +112,9 @@ class QR_utils:
         QR for a Pay Bill number.
         account_number maps to field 62 sub[01] (bill/account number).
         """
-        return self._generate("PB", amount=amount, reference=account_number,
-                               save_to_db=save_to_db)
+        paybill_account = account_number or getattr(self.vendor, "paybill_account_number", None)
+        return self._generate("PB", amount=amount, reference=paybill_account,
+                       save_to_db=save_to_db)
 
     def generate_transaction_qr(self, trx_type: str = "BG",
                                  amount: float | None = None,
@@ -128,6 +133,32 @@ class QR_utils:
             )
         return self._generate(trx_type, amount=amount, reference=reference,
                                save_to_db=save_to_db)
+
+    def generate_production_qr(self, amount: float | None = None,
+                                reference: str | None = None,
+                                save_to_db: bool = True):
+        """
+        Generate one production-focused interoperable QR payload strategy.
+
+        Behavior:
+        - Uses a standards-first universal interop profile.
+        - Selects PB for PAYBILL vendors and BG for TILL vendors.
+        - Includes available multi-rail identifiers in additional slots.
+        """
+        shortcode_type = (getattr(self.vendor, "shortcode_type", "TILL") or "TILL").strip().upper()
+        trx_type = "PB" if shortcode_type == "PAYBILL" else "BG"
+
+        effective_reference = reference
+        if trx_type == "PB" and not effective_reference:
+            effective_reference = getattr(self.vendor, "paybill_account_number", None)
+
+        return self._generate(
+            trx_type,
+            amount=amount,
+            reference=effective_reference,
+            save_to_db=save_to_db,
+            interop_profile="universal",
+        )
 
     # ─────────────────────────────────────────────────────────────────────────
     # Static utilities (usable without a vendor instance)
@@ -174,20 +205,36 @@ class QR_utils:
         if not payload or len(payload) < 20:
             raise ValueError("Payload too short")
 
-        def _tlv(s: str) -> dict:
+        def _tlv(s: str, *, strict: bool = False) -> dict:
             out = {}
             i = 0
-            while i < len(s) - 3:
-                tag = s[i:i+2]
-                try:
-                    ln = int(s[i+2:i+4])
-                except ValueError:
+            while i < len(s):
+                if i + 4 > len(s):
+                    if strict:
+                        raise ValueError("Malformed TLV: truncated header")
                     break
-                out[tag] = s[i+4:i+4+ln]
-                i += 4 + ln
+
+                tag = s[i:i+2]
+                ln_raw = s[i+2:i+4]
+                try:
+                    ln = int(ln_raw)
+                except ValueError:
+                    if strict:
+                        raise ValueError(f"Malformed TLV length for tag {tag}: '{ln_raw}'")
+                    break
+
+                value_start = i + 4
+                value_end = value_start + ln
+                if value_end > len(s):
+                    if strict:
+                        raise ValueError(f"Malformed TLV value length overflow for tag {tag}")
+                    break
+
+                out[tag] = s[value_start:value_end]
+                i = value_end
             return out
 
-        f = _tlv(payload)
+        f = _tlv(payload, strict=True)
 
         result = {
             "format_indicator":    f.get("00"),
@@ -201,6 +248,9 @@ class QR_utils:
                 "equity_account":      None,
             "postal_code":         f.get("61"),
             "additional_data":     f.get("62"),
+            "additional_data_fields": {},
+            "reference":           None,
+            "reference_label":     None,
             "language":            f.get("64"),
             "timestamp":           f.get("82"),
             "mpesa_routing":       f.get("83"),
@@ -212,20 +262,32 @@ class QR_utils:
         # Decode every merchant account sub-template
         for tid in [f"{n:02d}" for n in range(2, 52)]:
             if tid in f:
-                sub = _tlv(f[tid])
+                sub = _tlv(f[tid], strict=True)
                 result["psp_accounts"][tid] = {
                     "guid":    sub.get("00"),
                     "account": sub.get("01"),
                 }
 
-        # Interpret field 60 based on provider profile: Equity profile uses
-        # GUID 68 in slot 29 and treats field 60 as account context.
+        additional_data_raw = f.get("62")
+        if additional_data_raw:
+            additional_data_fields = _tlv(additional_data_raw, strict=True)
+            result["additional_data_fields"] = additional_data_fields
+            result["reference"] = additional_data_fields.get("01")
+            result["reference_label"] = additional_data_fields.get("05")
+
+        # Interpret field 60 based on profile markers:
+        # - Adaptive Equity profile uses GUID 68 in slot 29.
+        # - Universal profile keeps city in 60 and may place Equity in slot 35.
         field_60 = f.get("60")
         slot_29 = result["psp_accounts"].get("29") or {}
         if slot_29.get("guid") == "68":
             result["equity_account"] = field_60 or slot_29.get("account")
         else:
             result["merchant_city"] = field_60
+
+        if not result["equity_account"]:
+            slot_35 = result["psp_accounts"].get(UNIVERSAL_EQUITY_SLOT) or {}
+            result["equity_account"] = slot_35.get("account")
 
         return result
 
@@ -259,7 +321,7 @@ class QR_utils:
         return datetime.now().strftime("%d%m%Y %H%M%S")
 
     def _build_payload(self, trx_type: str, amount: float | None,
-                        reference: str | None) -> str:
+                        reference: str | None, interop_profile: str = "adaptive") -> str:
         """
         Assemble the full CBK-compliant TLV string, mirroring the
         exact field order and structure from Safaricom's own app.
@@ -276,11 +338,12 @@ class QR_utils:
         # ── Slot 28: primary merchant account (GUID + account number) ─────────
         slot_28 = t("28", t("00", "ke.go.qr") + t("01", account))
 
-       # Equity's EazzyApp scanner is hardcoded to look for GUID '68' in
-        # slot 29. Using 'ke.go.qr' here causes Equity to reject the QR.
-        # When no Equity account is configured, keep the ke.go.qr interop
-        # flag (original behaviour, harmless to all other scanners).
-        if equity_account:
+        # Profile behavior:
+        # - adaptive: keeps legacy/provider-optimized Equity behavior in slot 29
+        # - universal: standards-first slot 29 and Equity published on slot 35
+        if interop_profile == "universal":
+            slot_29 = t("29", t("00", "ke.go.qr"))
+        elif equity_account:
             slot_29 = t("29", t("00", "68") + t("01", str(equity_account)))
         else:
             slot_29 = t("29", t("00", "ke.go.qr"))
@@ -288,6 +351,12 @@ class QR_utils:
         # ── Optional bank/interoperability account slots (30-34) ─────────────
         # These are only emitted when a corresponding vendor account is present.
         extra_slots = ""
+        if interop_profile == "universal" and equity_account:
+            extra_slots += t(
+                UNIVERSAL_EQUITY_SLOT,
+                t("00", "ke.go.qr") + t("01", str(equity_account))
+            )
+
         for slot_config in INTEROP_SLOTS:
             account_value = getattr(self.vendor, slot_config["field"], None)
             if account_value:
@@ -297,10 +366,10 @@ class QR_utils:
                 )
 
         # ── Field 62: Additional data template ───────────────────────────────
-        # sub[05] = Reference Label — Safaricom always sets this to "04"
-        # For Pay Bill, sub[01] also carries the account/bill number
-        if trx_type == "PB" and reference:
-            sub_62 = t("01", reference[:25]) + t("05", "04")
+        # sub[01] = account/reference value (Paybill or transaction reference)
+        # sub[05] = reference label marker used by major wallets
+        if reference:
+            sub_62 = t("01", str(reference)[:25]) + t("05", "04")
         else:
             sub_62 = t("05", "04")
 
@@ -342,7 +411,10 @@ class QR_utils:
             t("58", self.vendor.country_code)    # Country code (KE)
             + t("59", name))                     # Merchant name (uppercase)
         
-        if equity_account:
+        if interop_profile == "universal":
+            city = (getattr(self.vendor, "store_label", None) or "Nairobi").strip()[:15] or "Nairobi"
+            payload += t("60", city)
+        elif equity_account:
             payload += t("60", str(equity_account))
         else:
             city = (getattr(self.vendor, "store_label", None) or "Nairobi").strip()[:15] or "Nairobi"
@@ -363,9 +435,10 @@ class QR_utils:
         return payload + "6304" + crc
 
     def _generate(self, trx_type: str, amount: float | None,
-                   reference: str | None, save_to_db: bool):
+                   reference: str | None, save_to_db: bool,
+                   interop_profile: str = "adaptive"):
         """Core: build payload, render image, optionally save to DB."""
-        payload   = self._build_payload(trx_type, amount, reference)
+        payload   = self._build_payload(trx_type, amount, reference, interop_profile=interop_profile)
         image     = self._render_image(payload)
         qr_type   = QR_Type.DYNAMIC if amount is not None else QR_Type.STATIC
         qr_record = None
@@ -385,6 +458,7 @@ class QR_utils:
                 "ncba_account": getattr(self.vendor, "ncba_account", None),
                 "currency": self.vendor.currency_code,
                 "trx_type": trx_type,
+                "interop_profile": interop_profile,
                 "timestamp": datetime.now().isoformat(),
             }
             if amount is not None:

@@ -52,3 +52,27 @@ def test_paybill_qr_payload_carries_account_number(app):
     assert parsed['amount'] == '250.00'
     assert '0108INV-0001' in additional_data
     assert QR_utils.validate_crc(payload) is True
+
+
+def test_universal_production_qr_models_single_payload_strategy(app):
+    vendor = _build_vendor(
+        app,
+        shortcode='9188963',
+        shortcode_type='TILL',
+    )
+    vendor.airtel_number = '0733123456'
+    vendor.kcb_account = 'KCB-9188963'
+    vendor.equity_account = 'EQ-9188963'
+
+    qr = QR_utils(vendor)
+    _, payload, _ = qr.generate_production_qr(save_to_db=False)
+    parsed = QR_utils.parse_payload(payload)
+    psp_accounts = parsed.get('psp_accounts') or {}
+
+    assert psp_accounts.get('28', {}).get('account') == '9188963'
+    assert psp_accounts.get('29', {}).get('guid') == 'ke.go.qr'
+    assert psp_accounts.get('30', {}).get('account') == '0733123456'
+    assert psp_accounts.get('31', {}).get('account') == 'KCB-9188963'
+    assert psp_accounts.get('35', {}).get('account') == 'EQ-9188963'
+    assert parsed.get('merchant_city') == 'Main'
+    assert QR_utils.validate_crc(payload) is True

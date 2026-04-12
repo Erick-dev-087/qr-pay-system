@@ -10,7 +10,9 @@ from utils.admin_analytics import (
     get_user_growth_over_time,
     get_total_users,
     get_top_users_by_transaction_count,
-    get_top_users_by_spending
+    get_top_users_by_spending,
+    get_all_vendors,
+    get_all_users
 )
 
 
@@ -102,3 +104,47 @@ def get_user_insights():
         
     except Exception as e:
         return jsonify({'error': 'Failed to retrieve user insights', 'details': str(e)}), 500
+
+
+@admin_bp.route('/api/admin/vendors/all', methods=['GET'])
+@jwt_required()
+def get_all_vendors_endpoint():
+    """
+    
+    """
+    try:
+        exclude_inactive = request.args.get('exclude_inactive', default='false', type=str).lower() == 'true'
+        
+        result = get_all_vendors(exclude_inactive=exclude_inactive)
+        
+        return jsonify({
+            'message': 'All vendors retrieved',
+            'total_vendors': result['total_vendors'],
+            'vendors': result['vendors']
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': 'Failed to retrieve vendors', 'details': str(e)}), 500
+
+
+@admin_bp.route('/api/admin/users/all', methods=['GET'])
+@jwt_required()
+def get_all_users_endpoint():
+    """
+    GET /api/admin/users/all?exclude_inactive=false
+    
+    
+    """
+    try:
+        exclude_inactive = request.args.get('exclude_inactive', default='false', type=str).lower() == 'true'
+        
+        result = get_all_users(exclude_inactive=exclude_inactive)
+        
+        return jsonify({
+            'message': 'All users retrieved',
+            'total_users': result['total_users'],
+            'users': result['users']
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': 'Failed to retrieve users', 'details': str(e)}), 500

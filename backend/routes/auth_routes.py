@@ -3,6 +3,7 @@ from models import User, Vendor
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity, get_jwt, get_jti
 from extensions import db
 from datetime import datetime, timezone
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 auth_bp = Blueprint('auth',__name__, url_prefix='/api/auth')
 
@@ -94,85 +95,89 @@ def register_user():
 
 @auth_bp.route('/register/vendor', methods=['POST'])
 def register_vendor():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Invalid or missing JSON payload'}), 400
+
+    required_fields = ['name','business_shortcode','merchant_id',
+                      'mcc','store_label','email','phone','password',
+                      ]
+
+    # Check required fields
+    for field in required_fields:
+        if field not in data:
+            return jsonify({'error': f'Missing required field: {field}'}), 400
+        if not data[field]:  # Check for empty values
+            return jsonify({'error': f'Field {field} cannot be empty'}), 400
+
+    # Validate email format
+    if not data['email'].strip() or '@' not in data['email']:
+        return jsonify({'error': 'Invalid email format'}), 400
+
+    # Validate phone number
+    if len(data['phone']) < 10:
+        return jsonify({'error': 'Invalid phone number'}), 400
+
+    # Validate password length
+    if len(data['password']) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+    # Optional field validation (only if provided)
+    if 'mcc' in data and data['mcc']:
+        if len(data['mcc']) != 4 and len(data['mcc']) != 8:
+            return jsonify({'error': 'MCC must be 4 or 8 characters'}), 400
+
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
-        
-        required_fields = ['name','business_shortcode','merchant_id',
-                          'mcc','store_label','email','phone','password',
-                          ]
-        
-        # Check required fields
-        for field in required_fields:
-            if field not in data:
-                return jsonify({'error': f'Missing required field: {field}'}), 400
-            if not data[field]:  # Check for empty values
-                return jsonify({'error': f'Field {field} cannot be empty'}), 400
-        
-        # Validate email format
-        if not data['email'].strip() or '@' not in data['email']:
-            return jsonify({'error': 'Invalid email format'}), 400
-            
-        # Validate phone number
-        if len(data['phone']) < 10:
-            return jsonify({'error': 'Invalid phone number'}), 400
-        
-        # Validate password length
-        if len(data['password']) < 8:
-            return jsonify({'error': 'Password must be at least 8 characters'}), 400
-        
-        # Optional field validation (only if provided)
-        if 'mcc' in data and data['mcc']:
-            if len(data['mcc']) != 4 and len(data['mcc']) != 8:
-                return jsonify({'error': 'MCC must be 4 or 8 characters'}), 400
+        shortcode_type = _normalize_shortcode_type(data.get('shortcode_type'))
+    except ValueError as exc:
+        return jsonify({'error': str(exc)}), 400
 
-        try:
-            shortcode_type = _normalize_shortcode_type(data.get('shortcode_type'))
-        except ValueError as exc:
-            return jsonify({'error': str(exc)}), 400
-
-        paybill_account_number = data.get('paybill_account_number')
-        if paybill_account_number is not None:
-            paybill_account_number = str(paybill_account_number).strip()
-            if not paybill_account_number:
-                paybill_account_number = None
-
-        if shortcode_type == 'TILL':
+    paybill_account_number = data.get('paybill_account_number')
+    if paybill_account_number is not None:
+        paybill_account_number = str(paybill_account_number).strip()
+        if not paybill_account_number:
             paybill_account_number = None
-            
-        # Check for existing vendor
-        if Vendor.query.filter_by(email=data['email']).first():
-            return jsonify({
-                'error': 'Conflict',
-                'message': 'Vendor with this email already exists'
-            }), 409
-            
-        if Vendor.query.filter_by(business_shortcode=data['business_shortcode']).first():
-            return jsonify({
-                'error': 'Conflict',
-                'message': 'Vendor with this business shortcode already exists'
-            }), 409
-            
-        if Vendor.query.filter_by(phone=data['phone']).first():
-            return jsonify({
-                'error': 'Conflict',
-                'message': 'Vendor with this phone number already exists'
-            }), 409
-    
+
+    if shortcode_type == 'TILL':
+        paybill_account_number = None
+
+    normalized_email = data['email'].lower().strip()
+    normalized_shortcode = data['business_shortcode'].strip()
+    normalized_phone = data['phone'].strip()
+
+    # Check for existing vendor
+    if Vendor.query.filter_by(email=normalized_email).first():
+        return jsonify({
+            'error': 'Conflict',
+            'message': 'Vendor with this email already exists'
+        }), 409
+
+    if Vendor.query.filter_by(business_shortcode=normalized_shortcode).first():
+        return jsonify({
+            'error': 'Conflict',
+            'message': 'Vendor with this business shortcode already exists'
+        }), 409
+
+    if Vendor.query.filter_by(phone=normalized_phone).first():
+        return jsonify({
+            'error': 'Conflict',
+            'message': 'Vendor with this phone number already exists'
+        }), 409
+
+    try:
         # Create new vendor with only required/provided fields
         new_vendor = Vendor(
             name=data['name'].strip(),
-            business_shortcode=data['business_shortcode'].strip(),
+            business_shortcode=normalized_shortcode,
             shortcode_type=shortcode_type,
             paybill_account_number=paybill_account_number,
             merchant_id=data['merchant_id'].strip(),
             mcc=data['mcc'].strip(),
             store_label=data['store_label'].strip(),
-            email=data['email'].lower().strip(),
-            phone=data['phone'].strip()
+            email=normalized_email,
+            phone=normalized_phone
         )
-        
+
         # Set password
         new_vendor.set_password(data['password'])
 
@@ -193,7 +198,7 @@ def register_vendor():
             }
 
         )
-        
+
         return jsonify({
             'message': 'Vendor registered successfully',
             'access_token': access_token,
@@ -208,10 +213,28 @@ def register_vendor():
                 'store_label': new_vendor.store_label,
                 'email': new_vendor.email,
                 'phone':new_vendor.phone
-                
+
             }
         }), 201
 
+    except IntegrityError as exc:
+        db.session.rollback()
+        raw_message = str(getattr(exc, 'orig', exc))
+        lowered = raw_message.lower()
+        if 'vendors_pkey' in lowered or 'duplicate key value violates unique constraint "vendors_pkey"' in lowered:
+            return jsonify({
+                'error': 'Database inconsistency',
+                'message': 'Vendor ID sequence is out of sync. Run sequence repair on vendors.id then retry.',
+                'details': raw_message,
+            }), 500
+        return jsonify({'error': 'Registration failed', 'details': raw_message}), 500
+    except OperationalError as exc:
+        db.session.rollback()
+        return jsonify({
+            'error': 'Database unavailable',
+            'message': 'Temporary database connection issue. Please retry shortly.',
+            'details': str(getattr(exc, 'orig', exc)),
+        }), 503
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': 'Registration failed', 'details': str(e)}), 500

@@ -5,6 +5,7 @@ Tests the /api/payment/confirm endpoint
 import pytest
 from app import create_app
 from extensions import db
+import routes.payment_routes as payment_routes_module
 from models import (
     User, Vendor, Transaction, QRCode, PaymentSession,
     TransactionStatus, PaymentStatus, QRStatus, QR_Type
@@ -291,3 +292,80 @@ def test_callback_mock_format(client, app, sample_transaction):
         db.session.refresh(transaction)
         assert transaction.status == TransactionStatus.SUCCESS
         assert transaction.mpesa_receipt == "MOCK_RECEIPT_123"
+
+
+def test_callback_success_triggers_external_merchant_sms_pitch(client, app, monkeypatch):
+    """SMS pitch is sent when successful payment targets an externally discovered merchant."""
+    with app.app_context():
+        user = User(
+            name="External Buyer",
+            phone_number="254712111222",
+            email="externalbuyer@example.com"
+        )
+        user.set_password("password123")
+        db.session.add(user)
+        db.session.flush()
+
+        vendor = Vendor(
+            name="External Merchant",
+            business_shortcode="EXTSMS001",
+            email="external.vendor@example.com",
+            phone="254712999888",
+            psp_name="external_discovered"
+        )
+        vendor.set_password("vendor123")
+        db.session.add(vendor)
+        db.session.flush()
+
+        qr = QRCode(
+            payload_data="000201010211EXTERNALSMS",
+            qr_type=QR_Type.STATIC,
+            status=QRStatus.ACTIVE,
+            vendor_id=vendor.id,
+            payload_json={"external_outreach_allowed": True}
+        )
+        db.session.add(qr)
+        db.session.flush()
+
+        transaction = Transaction(
+            amount=150,
+            status=TransactionStatus.PENDING,
+            phone="254712111222",
+            user_id=user.id,
+            vendor_id=vendor.id,
+            qrcode_id=qr.id
+        )
+        db.session.add(transaction)
+        db.session.commit()
+
+        sms_calls = []
+        monkeypatch.setenv('ENABLE_EXTERNAL_MERCHANT_SMS_PITCH', 'true')
+        monkeypatch.setenv('APP_DOWNLOAD_URL', 'https://example.com/download')
+        monkeypatch.setattr(
+            payment_routes_module,
+            'send_sms',
+            lambda phone, message: (sms_calls.append((phone, message)) or True, 'SMS sent')
+        )
+
+        callback_data = {
+            "Body": {
+                "stkCallback": {
+                    "CheckoutRequestID": "ws_CO_ext_sms_001",
+                    "ResultCode": 0,
+                    "ResultDesc": "The service request is processed successfully.",
+                    "CallbackMetadata": {
+                        "Item": [
+                            {"Name": "Amount", "Value": 150},
+                            {"Name": "MpesaReceiptNumber", "Value": "EXTSMS123"},
+                            {"Name": "PhoneNumber", "Value": 254712111222}
+                        ]
+                    }
+                }
+            }
+        }
+
+        response = client.post('/api/payment/confirm', json=callback_data)
+        assert response.status_code == 200
+        assert len(sms_calls) == 1
+        assert sms_calls[0][0] == '254712999888'
+        assert '150' in sms_calls[0][1]

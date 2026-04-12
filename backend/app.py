@@ -15,8 +15,11 @@ def create_app():
     CORS(app)
     
     # Load database configuration
-    app.config['SQLALCHEMY_DATABASE_URI'] = DatabaseConfigs.SQLALCHEMY_DATABASE_URL
+    db_uri = DatabaseConfigs.SQLALCHEMY_DATABASE_URL
+    app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = DatabaseConfigs.SQLALCHEMY_TRACK_MODIFICATIONS
+    if not str(db_uri).startswith('sqlite:'):
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = DatabaseConfigs.SQLALCHEMY_ENGINE_OPTIONS
     
     # Load Flask configuration
     app.config['SECRET_KEY'] = FlaskConfigs.SECRET_KEY

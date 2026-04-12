@@ -29,6 +29,11 @@ class DatabaseConfigs():
 
     SQLALCHEMY_DATABASE_URL = _normalize_database_url(os.getenv("DATABASE_URL"))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": int(os.getenv("DB_POOL_RECYCLE_SECONDS", "1800")),
+        "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT_SECONDS", "30")),
+    }
 
 class FlaskConfigs():
     """ Flask settings """

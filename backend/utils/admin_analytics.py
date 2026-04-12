@@ -144,6 +144,42 @@ def get_vendors_by_success_rate(limit=10, min_transactions=5):
     ]
 
 
+def get_all_vendors(exclude_inactive=False):
+    """
+    Get all registered vendors with their details (excluding password hash).
+    
+    
+    """
+    query = db.session.query(Vendor)
+    
+    if exclude_inactive:
+        query = query.filter(Vendor.is_active == True)
+    
+    vendors = query.order_by(Vendor.created_at.desc()).all()
+    
+    return {
+        "total_vendors": len(vendors),
+        "vendors": [
+            {
+                "id": v.id,
+                "name": v.name,
+                "business_name": v.business_name,
+                "email": v.email,
+                "phone": v.phone,
+                "business_shortcode": v.business_shortcode,
+                "shortcode_type": v.shortcode_type,
+                "merchant_id": v.merchant_id,
+                "mcc": v.mcc,
+                "psp_name": v.psp_name,
+                "is_active": v.is_active,
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+                "last_login": v.last_login.isoformat() if v.last_login else None
+            }
+            for v in vendors
+        ]
+    }
+
+
 
 
 
@@ -198,6 +234,36 @@ def get_total_users():
     """
     count = db.session.query(func.count(User.id)).scalar()
     return count if count else 0
+
+
+def get_all_users(exclude_inactive=False):
+    """
+    Get all registered users with their details (excluding password hash).
+    
+    
+    """
+    query = db.session.query(User)
+    
+    if exclude_inactive:
+        query = query.filter(User.is_active == True)
+    
+    users = query.order_by(User.created_at.desc()).all()
+    
+    return {
+        "total_users": len(users),
+        "users": [
+            {
+                "id": u.id,
+                "name": u.name,
+                "email": u.email,
+                "phone_number": u.phone_number,
+                "is_active": u.is_active,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+                "last_login": u.last_login.isoformat() if u.last_login else None
+            }
+            for u in users
+        ]
+    }
 
 
 def get_top_users_by_transaction_count(limit=10):

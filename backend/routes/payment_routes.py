@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 from models import PaymentSession,Transaction, User,Vendor,QRCode,QR_Type,QRStatus,TransactionStatus,PaymentStatus
 from utils.daraja_service import DarajaService, TransactionType
 from utils.mpese_mock import MockMpesaService
+from utils.sms_service import send_sms, build_external_merchant_pitch_message
+import os
 
 payment_bp = Blueprint('payment',__name__)
 
@@ -302,6 +304,27 @@ def daraja_callback():
             ).first()
             if payment_session:
                 payment_session.status = PaymentStatus.PAYMENT_PENDING  # Or create SUCCESS status
+
+            # Optional growth loop: notify externally discovered merchants.
+            vendor = transaction.vendor
+            qr_payload_json = (transaction.qr_code.payload_json or {}) if transaction.qr_code else {}
+            should_pitch_external = (
+                vendor is not None
+                and vendor.psp_name == 'external_discovered'
+                and bool(qr_payload_json.get('external_outreach_allowed'))
+                and str(os.getenv('ENABLE_EXTERNAL_MERCHANT_SMS_PITCH', 'true')).strip().lower() in {'1', 'true', 'yes', 'on'}
+            )
+
+            if should_pitch_external:
+                message = build_external_merchant_pitch_message(
+                    amount=transaction.amount,
+                    download_url=os.getenv('APP_DOWNLOAD_URL', '').strip(),
+                )
+                sent, sms_info = send_sms(vendor.phone, message)
+                if sent:
+                    print(f"📩 External merchant outreach SMS sent for TXN {transaction.id}")
+                else:
+                    print(f"⚠️ External merchant outreach SMS skipped for TXN {transaction.id}: {sms_info}")
             
             print(f"✅ Payment successful: TXN {transaction.id}, Receipt: {transaction.mpesa_receipt}")
         else:
