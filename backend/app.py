@@ -43,6 +43,9 @@ def create_app():
     app.config['MAIL_USERNAME'] =  EmailConfig.MAIL_USERNAME
     app.config['MAIL_PASSWORD'] = EmailConfig.MAIL_PASSWORD
     app.config['MAIL_DEFAULT_SENDER'] = EmailConfig.MAIL_DEFAULT_SENDER
+    app.config['MAIL_TIMEOUT_SECONDS'] = EmailConfig.MAIL_TIMEOUT_SECONDS
+    app.config['MAIL_SEND_MAX_RETRIES'] = EmailConfig.MAIL_SEND_MAX_RETRIES
+    app.config['MAIL_RETRY_BACKOFF_SECONDS'] = EmailConfig.MAIL_RETRY_BACKOFF_SECONDS
 
     
     # Initialize extensions with app

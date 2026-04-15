@@ -113,3 +113,8 @@ class EmailConfig:
     MAIL_USERNAME = (os.getenv("MAIL_USERNAME") or "").strip()
     MAIL_PASSWORD = (os.getenv("MAIL_PASSWORD") or "").strip()
     MAIL_DEFAULT_SENDER = (os.getenv("MAIL_DEFAULT_SENDER") or "").strip()
+    MAIL_TIMEOUT_SECONDS = int((os.getenv("MAIL_TIMEOUT_SECONDS") or "20").strip() or 20)
+    MAIL_SEND_MAX_RETRIES = int((os.getenv("MAIL_SEND_MAX_RETRIES") or "3").strip() or 3)
+    MAIL_RETRY_BACKOFF_SECONDS = float(
+        (os.getenv("MAIL_RETRY_BACKOFF_SECONDS") or "1").strip() or 1
+    )

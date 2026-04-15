@@ -1,4 +1,5 @@
 import smtplib
+import time
 from email.message import EmailMessage
 from urllib.parse import parse_qsl, quote_plus, urlencode, urlsplit, urlunsplit
 
@@ -157,6 +158,9 @@ class ResetEmail:
                 mail_default_sender = (config.get("MAIL_DEFAULT_SENDER") or mail_username).strip()
                 mail_use_tls = bool(config.get("MAIL_USE_TLS", True))
                 mail_use_ssl = bool(config.get("MAIL_USE_SSL", False))
+                mail_timeout = int(config.get("MAIL_TIMEOUT_SECONDS") or 20)
+                max_retries = max(1, int(config.get("MAIL_SEND_MAX_RETRIES") or 3))
+                retry_backoff_seconds = float(config.get("MAIL_RETRY_BACKOFF_SECONDS") or 1.0)
 
                 if not self.recipient:
                         return "Failed to send email: recipient email is missing"
@@ -167,26 +171,62 @@ class ResetEmail:
                 if not mail_default_sender:
                         return "Failed to send email: MAIL_DEFAULT_SENDER or MAIL_USERNAME is not configured"
 
-                try:
-                        msg = EmailMessage()
-                        msg["Subject"] = subject
-                        msg["From"] = mail_default_sender
-                        msg["To"] = self.recipient
-                        msg.set_content(plain_body)
-                        msg.add_alternative(html_body, subtype="html")
+                msg = EmailMessage()
+                msg["Subject"] = subject
+                msg["From"] = mail_default_sender
+                msg["To"] = self.recipient
+                msg.set_content(plain_body)
+                msg.add_alternative(html_body, subtype="html")
 
+                last_error = None
+                transient_os_errors = {101, 110, 111, 113}
+
+                for attempt in range(1, max_retries + 1):
+                    try:
                         smtp_cls = smtplib.SMTP_SSL if mail_use_ssl else smtplib.SMTP
-                        with smtp_cls(mail_server, mail_port, timeout=20) as smtp:
+                        with smtp_cls(mail_server, mail_port, timeout=mail_timeout) as smtp:
+                            smtp.ehlo()
+                            if mail_use_tls and not mail_use_ssl:
+                                smtp.starttls()
                                 smtp.ehlo()
-                                if mail_use_tls and not mail_use_ssl:
-                                        smtp.starttls()
-                                        smtp.ehlo()
-                                if mail_username and mail_password:
-                                        smtp.login(mail_username, mail_password)
-                                smtp.send_message(msg)
-
+                            if mail_username and mail_password:
+                                smtp.login(mail_username, mail_password)
+                            smtp.send_message(msg)
                         return True
-                except Exception as exc:
-                        return f"Failed to send email to {self.recipient}: {exc}"
+                    except (smtplib.SMTPServerDisconnected, smtplib.SMTPConnectError) as exc:
+                        last_error = exc
+                        if attempt < max_retries:
+                            current_app.logger.warning(
+                                "SMTP connection issue on attempt %s/%s for %s: %s",
+                                attempt,
+                                max_retries,
+                                self.recipient,
+                                exc,
+                            )
+                            time.sleep(max(0.0, retry_backoff_seconds) * attempt)
+                            continue
+                        break
+                    except OSError as exc:
+                        last_error = exc
+                        err_no = getattr(exc, "errno", None)
+                        if attempt < max_retries:
+                            if err_no in transient_os_errors:
+                                current_app.logger.warning(
+                                    "SMTP network issue on attempt %s/%s for %s: %s",
+                                    attempt,
+                                    max_retries,
+                                    self.recipient,
+                                    exc,
+                                )
+                                time.sleep(max(0.0, retry_backoff_seconds) * attempt)
+                                continue
+                        break
+                    except Exception as exc:
+                        last_error = exc
+                        break
+
+                return (
+                    f"Failed to send email to {self.recipient} after {max_retries} attempt(s): {last_error}"
+                )
 
 
