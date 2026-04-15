@@ -135,3 +135,49 @@ def test_logout_success(client, make_user, auth_header):
 
     assert response.status_code == 200
     assert data['message'] == 'Logged out successfully'
+
+
+def test_forgot_password_returns_generic_message(client, app, make_user):
+    make_user(email='forgot.user@example.com', phone='254700100011')
+
+    app.config['EXPOSE_RESET_TOKEN'] = False
+    response = client.post('/api/auth/forgot-password', json={'email': 'forgot.user@example.com'})
+    data = response.get_json()
+
+    assert response.status_code == 200
+    assert 'message' in data
+    assert 'reset_token' not in data
+
+
+def test_reset_password_success_flow(client, app, make_user):
+    make_user(email='reset.user@example.com', phone='254700100012', password='OldPassword123')
+
+    app.config['EXPOSE_RESET_TOKEN'] = True
+
+    forgot_response = client.post('/api/auth/forgot-password', json={'email': 'reset.user@example.com'})
+    forgot_data = forgot_response.get_json()
+
+    assert forgot_response.status_code == 200
+    assert 'reset_token' in forgot_data
+
+    reset_response = client.post(
+        '/api/auth/reset-password',
+        json={
+            'token': forgot_data['reset_token'],
+            'new_password': 'NewPassword123',
+            'confirm_password': 'NewPassword123',
+        },
+    )
+    reset_data = reset_response.get_json()
+
+    assert reset_response.status_code == 200
+    assert reset_data['message'] == 'Password reset successful'
+
+    login_response = client.post(
+        '/api/auth/login',
+        json={'email': 'reset.user@example.com', 'password': 'NewPassword123'},
+    )
+    login_data = login_response.get_json()
+
+    assert login_response.status_code == 200
+    assert login_data['user_type'] == 'user'

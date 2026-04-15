@@ -4,7 +4,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-def _normalize_database_url(raw_url: str) -> str:
+def _as_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "t", "yes", "y", "on"}
+
+
+def _normalize_database_url(raw_url: str | None) -> str:
     """Normalize DATABASE_URL for SQLAlchemy/psycopg2 compatibility."""
     if not raw_url:
         raise ValueError("DATABASE_URL must be set in environment variables")
@@ -37,7 +43,7 @@ class DatabaseConfigs():
 
 class FlaskConfigs():
     """ Flask settings """
-    DEBUG = os.getenv("DEBUG", "True") == "True"
+    DEBUG = _as_bool(os.getenv("DEBUG"), True)
     SECRET_KEY = os.getenv("SECRET_KEY", "supersecret")
 
     
@@ -63,11 +69,11 @@ class DarajaAPIConfigs():
 
 class QRconfig():
     """ Static QR Codes Configs"""
-    STATIC_QR_MODE = os.getenv("STATIC_QR_MODE","False") == "True"
+    STATIC_QR_MODE = _as_bool(os.getenv("STATIC_QR_MODE"), False)
 
 class SecurityConfig:
     """ Cookies security Configs"""
-    SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "False") == "True"
+    SESSION_COOKIE_SECURE = _as_bool(os.getenv("SESSION_COOKIE_SECURE"), False)
     SESSION_COOKIE_HTTPONLY = True
     PERMANENT_SESSION_LIFETIME = int(os.getenv("SESSION_LIFETIME", "1800"))
 
@@ -87,4 +93,23 @@ class JWTConfig:
 
     JWT_ALGORITH = "HS256"
 
+
+class PasswordResetConfig:
+    """Password reset token settings."""
+
+    PASSWORD_RESET_SALT = os.getenv("PASSWORD_RESET_SALT", "qr-pay-password-reset-salt")
+    PASSWORD_RESET_EXPIRES_SECONDS = int(os.getenv("PASSWORD_RESET_EXPIRES_SECONDS", "3600"))
+    EXPOSE_RESET_TOKEN = _as_bool(os.getenv("EXPOSE_RESET_TOKEN"), False)
+    PASSWORD_RESET_FRONTEND_URL = (os.getenv("PASSWORD_RESET_FRONTEND_URL") or "").strip()
+
     
+class EmailConfig:
+    """Email Sending Configs"""
+    MAIL_BACKEND = (os.getenv("MAIL_BACKEND") or "smtp").strip().lower()
+    MAIL_SERVER = (os.getenv("MAIL_SERVER") or "").strip()
+    MAIL_PORT = int((os.getenv("MAIL_PORT") or "0").strip() or 0)
+    MAIL_USE_TLS = _as_bool(os.getenv("MAIL_USE_TLS"), True)
+    MAIL_USE_SSL = _as_bool(os.getenv("MAIL_USE_SSL"), False)
+    MAIL_USERNAME = (os.getenv("MAIL_USERNAME") or "").strip()
+    MAIL_PASSWORD = (os.getenv("MAIL_PASSWORD") or "").strip()
+    MAIL_DEFAULT_SENDER = (os.getenv("MAIL_DEFAULT_SENDER") or "").strip()

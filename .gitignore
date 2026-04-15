@@ -107,7 +107,7 @@ backend/generate_secrets.py
 backend/_extract_pdf.py
 backend/QR_ENCODING.txt
 backend/docker_to_neon_dump.sql
-
+backend/scripts
 
 # ===== Backup Files =====
 *.bak

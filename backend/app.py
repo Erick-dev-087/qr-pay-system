@@ -2,7 +2,8 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from sqlalchemy import text
 from extensions import db, jwt, migrate
-from config import DatabaseConfigs, FlaskConfigs, JWTConfig
+from config import (DatabaseConfigs, FlaskConfigs, 
+                    JWTConfig, PasswordResetConfig, EmailConfig)
 from routes import auth_bp, user_bp, vendor_bp, qr_bp, payment_bp, admin_bp
 
 
@@ -30,6 +31,19 @@ def create_app():
     app.config['JWT_TOKEN_LOCATION'] = JWTConfig.JWT_TOKEN_LOCATION
     app.config['JWT_HEADER_NAME'] = JWTConfig.JWT_HEADER_NAME
     app.config['JWT_HEADER_TYPE'] = JWTConfig.JWT_HEADER_TYPE
+    app.config['PASSWORD_RESET_SALT'] = PasswordResetConfig.PASSWORD_RESET_SALT
+    app.config['PASSWORD_RESET_EXPIRES_SECONDS'] = PasswordResetConfig.PASSWORD_RESET_EXPIRES_SECONDS
+    app.config['EXPOSE_RESET_TOKEN'] = PasswordResetConfig.EXPOSE_RESET_TOKEN
+    app.config['PASSWORD_RESET_FRONTEND_URL'] = PasswordResetConfig.PASSWORD_RESET_FRONTEND_URL
+    app.config['MAIL_BACKEND'] = EmailConfig.MAIL_BACKEND
+    app.config['MAIL_SERVER'] = EmailConfig.MAIL_SERVER
+    app.config['MAIL_PORT'] = EmailConfig.MAIL_PORT
+    app.config['MAIL_USE_TLS'] = EmailConfig.MAIL_USE_TLS
+    app.config['MAIL_USE_SSL'] = EmailConfig.MAIL_USE_SSL
+    app.config['MAIL_USERNAME'] =  EmailConfig.MAIL_USERNAME
+    app.config['MAIL_PASSWORD'] = EmailConfig.MAIL_PASSWORD
+    app.config['MAIL_DEFAULT_SENDER'] = EmailConfig.MAIL_DEFAULT_SENDER
+
     
     # Initialize extensions with app
     db.init_app(app)
