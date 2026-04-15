@@ -39,7 +39,7 @@ colorama==0.4.6
 packaging==25.0
 typing_extensions==4.15.0
 
-smtplib==0.1.0
+
 
 # Test dependencies
 pytest==8.4.2
