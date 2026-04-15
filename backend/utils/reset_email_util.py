@@ -1,6 +1,6 @@
 import smtplib
 from email.message import EmailMessage
-from urllib.parse import quote_plus
+from urllib.parse import parse_qsl, quote_plus, urlencode, urlsplit, urlunsplit
 
 from flask import current_app
 
@@ -12,12 +12,31 @@ class ResetEmail:
                 self.recipient = (recipient_email or "").strip()
 
         def _build_reset_link(self):
-                if not self.reset_url:
-                        return ""
-                if "{token}" in self.reset_url:
-                        return self.reset_url.replace("{token}", quote_plus(self.token))
-                separator = "&" if "?" in self.reset_url else "?"
-                return f"{self.reset_url}{separator}token={quote_plus(self.token)}"
+            raw_url = (self.reset_url or "").strip()
+            if not raw_url:
+                return ""
+
+            # Make Vercel-style bare hosts usable in email links.
+            if not raw_url.lower().startswith(("http://", "https://")):
+                raw_url = f"https://{raw_url}"
+
+            parsed = urlsplit(raw_url)
+            normalized_path = parsed.path or "/reset-password"
+            if normalized_path == "/":
+                normalized_path = "/reset-password"
+
+            normalized_url = urlunsplit(
+                (parsed.scheme, parsed.netloc, normalized_path, parsed.query, parsed.fragment)
+            )
+
+            if "{token}" in normalized_url:
+                return normalized_url.replace("{token}", quote_plus(self.token))
+
+            split = urlsplit(normalized_url)
+            query_pairs = dict(parse_qsl(split.query, keep_blank_values=True))
+            query_pairs["token"] = self.token
+            encoded_query = urlencode(query_pairs)
+            return urlunsplit((split.scheme, split.netloc, split.path, encoded_query, split.fragment))
 
         def build_email_body(self):
                 brand_name = (current_app.config.get("APP_BRAND_NAME") or "ScanPay").strip()
@@ -36,7 +55,15 @@ class ResetEmail:
                             <tr>
                                 <td style="padding: 12px 36px 0 36px; color:#A0B4CC; font-size:12px; line-height:1.6;">
                                     If the button does not work, copy and paste this secure link into your browser:<br>
-                                    <span style="color:#D9F5E8; word-break:break-all;">{reset_link}</span>
+                                    <a href=\"{reset_link}\" style="color:#D9F5E8; word-break:break-all; text-decoration:underline;">{reset_link}</a>
+                                </td>
+                            </tr>
+                        """
+                else:
+                        link_section = """
+                            <tr>
+                                <td style="padding: 12px 36px 0 36px; color:#F7B267; font-size:12px; line-height:1.6;">
+                                    Reset link is unavailable because PASSWORD_RESET_FRONTEND_URL is not configured on the server.
                                 </td>
                             </tr>
                         """
