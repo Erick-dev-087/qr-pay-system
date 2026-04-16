@@ -55,7 +55,7 @@ Authorization: Bearer <access_token>
 
 **Base Path:** `/api/auth`
 
-The authentication module handles registration, login, and logout for both Users and Vendors. It uses JWT tokens with custom claims to differentiate user types.
+The authentication module handles registration, login, logout, forgot password, and reset password for both Users and Vendors. It uses JWT tokens with custom claims to differentiate user types.
 
 ### 1.1 Register User
 
@@ -119,14 +119,14 @@ Creates a new merchant account with business details.
 {
     "name": "Jane Smith",
     "business_shortcode": "123456",
+    "shortcode_type": "TILL",
+    "paybill_account_number": null,
     "merchant_id": "MID001",
     "mcc": "5411",
     "store_label": "Downtown Store",
     "email": "jane@business.com",
     "phone": "254798765432",
-    "password": "vendorpass123",
-    "psp_id": "PSP001",
-    "psp_name": "Safaricom"
+    "password": "vendorpass123"
 }
 ```
 
@@ -134,28 +134,28 @@ Creates a new merchant account with business details.
 | Field | Description |
 |-------|-------------|
 | `business_shortcode` | Till/Paybill/Pochi number |
+| `shortcode_type` | `TILL` or `PAYBILL` (defaults to `TILL`) |
+| `paybill_account_number` | Optional account number for Paybill shortcode |
 | `merchant_id` | CBK/PSP routing identifier |
 | `mcc` | Merchant Category Code (4 or 8 characters) |
 | `store_label` | Physical store location/name |
-| `psp_id` | Payment Service Provider ID |
-| `psp_name` | PSP name (e.g., Safaricom) |
 
 **Success Response (201):**
 ```json
 {
-    "message": "Vendor registered successful",
+    "message": "Vendor registered successfully",
     "access_token": "eyJhbGciOiJS...",
     "vendor": {
         "id": 1,
         "name": "Jane Smith",
         "business_shortcode": "123456",
+        "shortcode_type": "TILL",
+        "paybill_account_number": null,
         "merchant_id": "MID001",
         "mcc": "5411",
         "store_label": "Downtown Store",
         "email": "jane@business.com",
-        "phone": "254798765432",
-        "psp_id": "PSP001",
-        "psp_name": "Safaricom"
+        "phone": "254798765432"
     }
 }
 ```
@@ -211,6 +211,8 @@ Authenticates both users and vendors via email.
         "id": 1,
         "name": "Jane Smith",
         "business_shortcode": "123456",
+        "shortcode_type": "TILL",
+        "paybill_account_number": null,
         "merchant_id": "MID001",
         "mcc": "5411",
         "store_label": "Downtown Store",
@@ -257,6 +259,64 @@ Logs out the current user/vendor.
 ```
 
 **Note:** JWT token invalidation is client-side (delete token from storage). Server logs the logout event for security monitoring.
+
+---
+
+### 1.5 Forgot Password
+
+Generates a timed reset token and emails it to the account owner when the email exists.
+
+**Endpoint:** `POST /api/auth/forgot-password`
+
+**Authentication:** None required
+
+**Request Body:**
+```json
+{
+    "email": "john@example.com"
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "message": "If the account exists, a password reset token has been generated.",
+    "expires_in_seconds": 3600
+}
+```
+
+**Notes:**
+- Response is intentionally generic (anti-account-enumeration).
+- If `EXPOSE_RESET_TOKEN=true`, response may also include `reset_token` for development/testing.
+
+---
+
+### 1.6 Reset Password
+
+Resets user or vendor password using a signed, time-limited token.
+
+**Endpoint:** `POST /api/auth/reset-password`
+
+**Authentication:** None required
+
+**Request Body:**
+```json
+{
+    "token": "<reset-token>",
+    "new_password": "newpass123",
+    "confirm_password": "newpass123"
+}
+```
+
+**Success Response (200):**
+```json
+{
+    "message": "Password reset successful"
+}
+```
+
+**Error Responses:**
+- `400` - Missing token/password, expired token, invalid token, mismatched passwords
 
 ---
 
@@ -531,6 +591,8 @@ Retrieves the authenticated vendor's profile.
         "id": 1,
         "name": "Jane Smith",
         "business_shortcode": "123456",
+        "shortcode_type": "TILL",
+        "paybill_account_number": null,
         "merchant_id": "MID001",
         "mcc": "5411",
         "store_label": "Downtown Store",
@@ -558,6 +620,8 @@ Updates vendor profile fields.
 {
     "name": "Jane Updated",
     "business_shortcode": "654321",
+    "shortcode_type": "PAYBILL",
+    "paybill_account_number": "123456",
     "email": "jane.new@business.com",
     "phone": "254798765999"
 }
@@ -717,9 +781,17 @@ Generates a new QR code for the authenticated vendor.
 ```json
 {
     "qr_type": "STATIC",
+    "qr_profile": "UNIVERSAL",
+    "reference": "INV-1001",
     "amount": 500  // Required only for DYNAMIC
 }
 ```
+
+**QR Profile Options:**
+| Profile | Description |
+|---------|-------------|
+| `UNIVERSAL` | Production-compatible universal payload generation |
+| `LEGACY_ADAPTIVE` | Legacy payload generation mode |
 
 **QR Code Types:**
 | Type | Description | Amount |
@@ -779,9 +851,15 @@ Scans and validates a QR code, logs the scan, and returns vendor info.
 **Request Body:**
 ```json
 {
-    "payload": "00020101021102150123456789012340302..."
+    "payload": "00020101021102150123456789012340302...",
+    "confirm_external_payment": false
 }
 ```
+
+**External QR Flow:**
+- If merchant is not in platform and `ALLOW_EXTERNAL_QR=true`, API can return a confirmation response.
+- Client should resend with `confirm_external_payment=true` when confirmation is required.
+- With `AUTO_ONBOARD_EXTERNAL_QR_ON_CONFIRM=true`, system auto-creates external vendor and QR records.
 
 **Processing Steps:**
 1. Validate CRC checksum
@@ -802,6 +880,8 @@ Scans and validates a QR code, logs the scan, and returns vendor info.
         "id": 5,
         "name": "Coffee Shop",
         "business_shortcode": "123456",
+        "shortcode_type": "PAYBILL",
+        "paybill_account_number": "ACC-123",
         "store_label": "Main Street Branch"
     },
     "qr_code": {
@@ -809,8 +889,12 @@ Scans and validates a QR code, logs the scan, and returns vendor info.
         "type": "static",
         "amount": null,
         "reference": null,
-        "currency": "404"
+        "additional_data": {},
+        "currency": "404",
+        "shortcode_type": "PAYBILL",
+        "paybill_account_number": "ACC-123"
     },
+    "requires_confirmation": false,
     "next_step": "Use /api/payment/initiate to complete the payment"
 }
 ```
@@ -837,7 +921,8 @@ Validates a QR code without logging a scan (read-only check).
 **Request Body:**
 ```json
 {
-    "payload": "00020101021102150123456789012340302..."
+    "payload": "00020101021102150123456789012340302...",
+    "confirm_external_payment": false
 }
 ```
 
@@ -855,6 +940,8 @@ Validates a QR code without logging a scan (read-only check).
         "id": 5,
         "name": "Coffee Shop",
         "business_shortcode": "123456",
+        "shortcode_type": "PAYBILL",
+        "paybill_account_number": "ACC-123",
         "store_label": "Main Street Branch"
     },
     "qr_code": {
@@ -862,8 +949,13 @@ Validates a QR code without logging a scan (read-only check).
         "type": "static",
         "amount": null,
         "reference": null,
-        "currency": "KES"
-    }
+        "additional_data": {},
+        "currency": "404",
+        "shortcode_type": "PAYBILL",
+        "paybill_account_number": "ACC-123"
+    },
+    "requires_confirmation": false,
+    "can_initiate_payment": true
 }
 ```
 
@@ -905,8 +997,8 @@ Initiates an M-Pesa STK Push payment to a vendor.
 9. Return transaction ID and checkout request ID
 
 **Transaction Types (automatically determined):**
-- `CustomerPayBillOnline` - Bill Payment (default)
-- `CustomerBuyGoodsOnline` - Goods/Services
+- `CustomerBuyGoodsOnline` - Used when vendor `shortcode_type` is `TILL`
+- `CustomerPayBillOnline` - Used when vendor `shortcode_type` is `PAYBILL`
 
 **Success Response (201):**
 ```json
@@ -1055,6 +1147,9 @@ Tests if the callback endpoint is publicly accessible.
 
 **Base Path:** `/api/admin`
 
+> **Route Prefix Note:** Admin routes are currently declared with absolute `/api/admin/...` paths inside the blueprint and also registered with `url_prefix='/api/admin'`.
+> Effective endpoint paths are therefore `/api/admin/api/admin/...`.
+
 Provides platform-wide analytics and monitoring for administrators.
 
 > **Note:** Admin role verification is not yet implemented. Currently uses JWT authentication only.
@@ -1063,7 +1158,7 @@ Provides platform-wide analytics and monitoring for administrators.
 
 Returns complete admin dashboard with all platform metrics.
 
-**Endpoint:** `GET /api/admin/metrics/overview`
+**Endpoint:** `GET /api/admin/api/admin/metrics/overview`
 
 **Authentication:** Required (JWT)
 
@@ -1095,7 +1190,7 @@ Returns complete admin dashboard with all platform metrics.
 
 Returns detailed vendor/merchant analytics.
 
-**Endpoint:** `GET /api/admin/metrics/merchants`
+**Endpoint:** `GET /api/admin/api/admin/metrics/merchants`
 
 **Authentication:** Required (JWT)
 
@@ -1143,7 +1238,7 @@ Returns detailed vendor/merchant analytics.
 
 Returns detailed user analytics.
 
-**Endpoint:** `GET /api/admin/metrics/users`
+**Endpoint:** `GET /api/admin/api/admin/metrics/users`
 
 **Authentication:** Required (JWT)
 
@@ -1174,6 +1269,36 @@ Returns detailed user analytics.
 - `get_top_users_by_transaction_count()`
 - `get_top_users_by_spending()`
 - `get_total_users()`
+
+---
+
+### 6.4 Get All Vendors (Admin)
+
+Returns full vendor list with total count.
+
+**Endpoint:** `GET /api/admin/api/admin/vendors/all`
+
+**Authentication:** Required (JWT)
+
+**Query Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `exclude_inactive` | `false` | If `true`, excludes inactive vendors |
+
+---
+
+### 6.5 Get All Users (Admin)
+
+Returns full user list with total count.
+
+**Endpoint:** `GET /api/admin/api/admin/users/all`
+
+**Authentication:** Required (JWT)
+
+**Query Parameters:**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `exclude_inactive` | `false` | If `true`, excludes inactive users |
 
 ---
 
@@ -1580,6 +1705,8 @@ DARAJA_CALLBACK_URL=https://your-public-url.com/api/payment/confirm
 | POST | `/api/auth/register/vendor` | No | Register new vendor |
 | POST | `/api/auth/login` | No | Login (user/vendor) |
 | POST | `/api/auth/logout` | JWT | Logout |
+| POST | `/api/auth/forgot-password` | No | Generate password reset token/email |
+| POST | `/api/auth/reset-password` | No | Reset password with token |
 | **User** |
 | GET | `/api/user/profile` | JWT | Get profile |
 | PUT | `/api/user/profile` | JWT | Update profile |
@@ -1604,9 +1731,11 @@ DARAJA_CALLBACK_URL=https://your-public-url.com/api/payment/confirm
 | GET | `/api/payment/{id}/status` | JWT | Check status |
 | GET | `/api/payment/ping` | No | Health check |
 | **Admin** |
-| GET | `/api/admin/metrics/overview` | JWT | Dashboard |
-| GET | `/api/admin/metrics/merchants` | JWT | Merchant stats |
-| GET | `/api/admin/metrics/users` | JWT | User stats |
+| GET | `/api/admin/api/admin/metrics/overview` | JWT | Dashboard |
+| GET | `/api/admin/api/admin/metrics/merchants` | JWT | Merchant stats |
+| GET | `/api/admin/api/admin/metrics/users` | JWT | User stats |
+| GET | `/api/admin/api/admin/vendors/all` | JWT | All vendors list |
+| GET | `/api/admin/api/admin/users/all` | JWT | All users list |
 
 ---
 
