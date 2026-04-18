@@ -294,7 +294,7 @@ def initiate_payment():
         }), 500
 
 
-@payment_bp.route('/confirm', methods=['POST'])
+@payment_bp.route('/stk_callback', methods=['POST'])
 def daraja_callback():
     """
     Handles M-Pesa/Daraja STK Push callback
