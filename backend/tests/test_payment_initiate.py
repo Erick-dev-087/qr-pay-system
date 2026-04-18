@@ -8,7 +8,7 @@ os.environ['JWT_SECRET_KEY'] = 'test-secret'
 
 from app import create_app
 from extensions import db
-from models import User, Vendor, QRCode, QR_Type, QRStatus, Transaction, TransactionStatus
+from models import User, Vendor, QRCode, QR_Type, QRStatus, Transaction, TransactionStatus, PaymentSession
 from flask_jwt_extended import create_access_token
 
 
@@ -189,6 +189,15 @@ def test_vendor_can_pay_another_vendor(client, test_app):
     assert 'transaction_id' in data
     assert data['amount'] == 5000
     assert data['vendor']['business_shortcode'] == '222222'
+
+    with test_app.app_context():
+        transaction = Transaction.query.get(data['transaction_id'])
+        assert transaction is not None
+        assert transaction.user_id is None
+        assert transaction.vendor_id == vendor2_id
+
+        payment_session = PaymentSession.query.filter_by(transaction_id=transaction.id).first()
+        assert payment_session is None
 
 
 def test_mpesa_callback_success(client, test_app):

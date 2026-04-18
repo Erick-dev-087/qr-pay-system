@@ -7,8 +7,41 @@ from utils.daraja_service import DarajaService, TransactionType
 from utils.mpese_mock import MockMpesaService
 from utils.sms_service import send_sms, build_external_merchant_pitch_message
 import os
+from sqlalchemy.exc import IntegrityError
 
 payment_bp = Blueprint('payment',__name__)
+
+
+def _as_bool(value, default=False):
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _normalize_msisdn(phone_number):
+    """Normalize Kenyan phone numbers into 2547XXXXXXXX format."""
+    digits = ''.join(ch for ch in str(phone_number or '') if ch.isdigit())
+    if len(digits) == 12 and digits.startswith('254'):
+        return digits
+    if len(digits) == 10 and digits.startswith('0'):
+        return f"254{digits[1:]}"
+    if len(digits) == 9 and digits.startswith('7'):
+        return f"254{digits}"
+    return None
+
+
+def _resolve_transaction_type(vendor):
+    """Resolve Daraja transaction type with sandbox-friendly fallback."""
+    shortcode_type = (getattr(vendor, 'shortcode_type', 'TILL') or 'TILL').upper()
+    base_url = str(os.getenv('DARAJA_BASE_URL', '')).strip().lower()
+    is_sandbox = 'sandbox.safaricom.co.ke' in base_url
+    force_bill_payment = _as_bool(os.getenv('DARAJA_FORCE_BILL_PAYMENT'), default=is_sandbox)
+
+    if shortcode_type == 'TILL' and not force_bill_payment:
+        return TransactionType.BUY_GOODS
+    return TransactionType.BILL_PAYMENT
 
 @payment_bp.route('/initiate', methods=['POST'])
 @jwt_required()
@@ -24,6 +57,13 @@ def initiate_payment():
     try:
         
         current_user_id = get_jwt_identity()
+        try:
+            current_user_id = int(current_user_id)
+        except (TypeError, ValueError):
+            return jsonify({
+                'error': 'Unauthorized',
+                'message': 'Invalid token identity'
+            }), 401
         claims = get_jwt()
         user_type = claims.get('user_type')
 
@@ -66,6 +106,7 @@ def initiate_payment():
         
         
         active_phone = None
+        payer_user_id = None
         if user_type == 'vendor':
             active_payer = Vendor.query.get(current_user_id)
             if not active_payer:
@@ -92,6 +133,7 @@ def initiate_payment():
                 }), 401
             
             active_phone = active_payer.phone_number
+            payer_user_id = active_payer.id
         else:
             return jsonify({
                 'error': 'Invalid user type',
@@ -99,10 +141,11 @@ def initiate_payment():
             }), 400
         
        
+        active_phone = _normalize_msisdn(active_phone)
         if not active_phone:
             return jsonify({
-                'error': 'Phone number required',
-                'message': 'Payer phone number not found'
+                'error': 'Invalid phone number',
+                'message': 'Use a valid Kenyan number in 07XXXXXXXX, 7XXXXXXXX, or 2547XXXXXXXX format'
             }), 400
         
        
@@ -142,7 +185,7 @@ def initiate_payment():
             status=TransactionStatus.PENDING,
             phone=active_phone,
             initated_at=initiated_at,
-            user_id=current_user_id,
+            user_id=payer_user_id,
             vendor_id=payee_vendor.id,
             qrcode_id=qr_code_id
         )
@@ -151,23 +194,28 @@ def initiate_payment():
         db.session.flush()  
         
        
-        payment_session = PaymentSession(
-            amount=amount,
-            status=PaymentStatus.PAYMENT_INITIATED,
-            started_at=initiated_at,
-            qr_id=qr_code_id,
-            user_id=current_user_id
-        )
+        if payer_user_id is not None:
+            payment_session = PaymentSession(
+                amount=amount,
+                status=PaymentStatus.PAYMENT_INITIATED,
+                started_at=initiated_at,
+                qr_id=qr_code_id,
+                user_id=payer_user_id,
+                transaction_id=transaction.id,
+            )
+            db.session.add(payment_session)
+
+        try:
+            db.session.commit()
+        except IntegrityError as err:
+            db.session.rollback()
+            return jsonify({
+                'error': 'Payment initiation failed',
+                'message': 'Unable to create payment records. Please verify account setup and try again.',
+                'details': str(err.orig)
+            }), 500
         
-        db.session.add(payment_session)
-        db.session.commit()
-        
-        # Till is goods/services; Paybill is bill payment.
-        shortcode_type = (getattr(payee_vendor, 'shortcode_type', 'TILL') or 'TILL').upper()
-        if shortcode_type == 'TILL':
-            daraja_transaction_type = TransactionType.BUY_GOODS
-        else:
-            daraja_transaction_type = TransactionType.BILL_PAYMENT
+        daraja_transaction_type = _resolve_transaction_type(payee_vendor)
         
         # Use Daraja Service for real API or mock for testing
         try:
@@ -193,11 +241,35 @@ def initiate_payment():
             )
         
         if not mpesa_response.get('success'):
-            db.session.rollback()
+            current_msg = mpesa_response.get('message', 'Unknown error')
+
+            # Automatic sandbox retry: BUY_GOODS often fails in Daraja sandbox.
+            if daraja_transaction_type == TransactionType.BUY_GOODS:
+                retry_response = DarajaService().initiate_stk_push(
+                    phone_number=active_phone,
+                    amount=int(amount),
+                    account_reference=f'TXN-{transaction.id}',
+                    transaction_desc=f'Payment to {payee_vendor.name}',
+                    transaction_type=TransactionType.BILL_PAYMENT
+                )
+                if retry_response.get('success'):
+                    mpesa_response = retry_response
+                    daraja_transaction_type = TransactionType.BILL_PAYMENT
+                else:
+                    current_msg = retry_response.get('message', current_msg)
+
+            if not mpesa_response.get('success'):
+                return jsonify({
+                    'error': 'Failed to initiate payment',
+                    'message': current_msg,
+                    'hint': 'Verify Daraja credentials, transaction type, callback URL, and network reachability'
+                }), 502
+
+        if not mpesa_response.get('success'):
             return jsonify({
                 'error': 'Failed to initiate payment',
                 'message': mpesa_response.get('message', 'Unknown error')
-            }), 500
+            }), 502
         
         
         return jsonify({

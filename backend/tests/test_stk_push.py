@@ -19,16 +19,16 @@ import time
 load_dotenv()
 
 # API Configuration
-API_BASE = 'http://localhost:5000/api'
+API_BASE = 'https://qr-pay-system.onrender.com/api'
 
 # Test credentials from seed_data.py
 TEST_USER = {
-    'email': 'john.kamau@email.com',
-    'password': 'password123'
+    'email': 'dan@njoroge.com',
+    'password': 'Daniel01'
 }
 
 # QR Code IDs should be 1-5 if seed_data.py was run
-TEST_QR_CODE_ID = 1
+TEST_QR_CODE_ID = 3
 
 print('='*70)
 print('TEST: STK PUSH INTEGRATION TEST - Via Payment Routes')
@@ -195,7 +195,7 @@ def main():
     
     print('\nChecking Flask server...')
     try:
-        health = requests.get(f'{API_BASE}/system/health', timeout=5)
+        health = requests.get(f'{API_BASE}/health', timeout=5)
         if health.status_code == 200:
             print('SUCCESS: Flask server is running!\n')
         else:
