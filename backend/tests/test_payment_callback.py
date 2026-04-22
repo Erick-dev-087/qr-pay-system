@@ -1,6 +1,6 @@
 """
 Tests for M-Pesa/Daraja payment callback handling
-Tests the /api/payment/confirm endpoint
+Tests the /api/payment/stk_callback endpoint
 """
 import pytest
 from app import create_app
@@ -123,7 +123,7 @@ def test_callback_success(client, app, sample_transaction, sample_user):
         }
         
         response = client.post(
-            '/api/payment/confirm',
+            '/api/payment/stk_callback',
             json=callback_data,
             content_type='application/json'
         )
@@ -163,7 +163,7 @@ def test_callback_failure(client, app, sample_transaction):
         }
         
         response = client.post(
-            '/api/payment/confirm',
+            '/api/payment/stk_callback',
             json=callback_data,
             content_type='application/json'
         )
@@ -200,14 +200,14 @@ def test_callback_idempotency(client, app, sample_transaction):
         }
         
         # First callback
-        response1 = client.post('/api/payment/confirm', json=callback_data)
+        response1 = client.post('/api/payment/stk_callback', json=callback_data)
         assert response1.status_code == 200
         
         db.session.refresh(transaction)
         receipt_first = transaction.mpesa_receipt
         
         # Second callback (duplicate)
-        response2 = client.post('/api/payment/confirm', json=callback_data)
+        response2 = client.post('/api/payment/stk_callback', json=callback_data)
         assert response2.status_code == 200
         
         # Transaction should not be processed again
@@ -226,7 +226,7 @@ def test_callback_missing_checkout_id(client):
         }
     }
     
-    response = client.post('/api/payment/confirm', json=callback_data)
+    response = client.post('/api/payment/stk_callback', json=callback_data)
     assert response.status_code == 200  # Should acknowledge even if invalid
 
 
@@ -247,7 +247,7 @@ def test_callback_transaction_not_found(client):
         }
     }
     
-    response = client.post('/api/payment/confirm', json=callback_data)
+    response = client.post('/api/payment/stk_callback', json=callback_data)
     assert response.status_code == 200  # Should acknowledge
 
 
@@ -257,7 +257,7 @@ def test_callback_ping_endpoint(client):
     assert response.status_code == 200
     data = response.get_json()
     assert data['status'] == 'ok'
-    assert 'confirm' in data['endpoint']
+    assert 'stk_callback' in data['endpoint']
 
 
 def test_learning_daraja_ping(client):
@@ -285,7 +285,7 @@ def test_callback_mock_format(client, app, sample_transaction):
             "receipt_number": "MOCK_RECEIPT_123"
         }
         
-        response = client.post('/api/payment/confirm', json=callback_data)
+        response = client.post('/api/payment/stk_callback', json=callback_data)
         assert response.status_code == 200
         
         # Should process successfully
@@ -364,7 +364,7 @@ def test_callback_success_triggers_external_merchant_sms_pitch(client, app, monk
             }
         }
 
-        response = client.post('/api/payment/confirm', json=callback_data)
+        response = client.post('/api/payment/stk_callback', json=callback_data)
         assert response.status_code == 200
         assert len(sms_calls) == 1
         assert sms_calls[0][0] == '254712999888'

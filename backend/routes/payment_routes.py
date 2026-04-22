@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
-from extensions import db
+from extensions import db, limiter
 from datetime import datetime, timezone
 from models import PaymentSession,Transaction, User,Vendor,QRCode,QR_Type,QRStatus,TransactionStatus,PaymentStatus
 from utils.daraja_service import DarajaService, TransactionType
@@ -44,6 +44,7 @@ def _resolve_transaction_type(vendor):
     return TransactionType.BILL_PAYMENT
 
 @payment_bp.route('/initiate', methods=['POST'])
+@limiter.limit('10 per minute')
 @jwt_required()
 def initiate_payment():
     """
@@ -237,7 +238,7 @@ def initiate_payment():
                 transaction_id=transaction.id,
                 account_reference=f'TXN-{transaction.id}',
                 transaction_desc=f'Payment to {payee_vendor.name}',
-                callback_url=request.host_url.rstrip('/') + '/api/payment/confirm'
+                callback_url=request.host_url.rstrip('/') + '/api/payment/stk_callback'
             )
         
         if not mpesa_response.get('success'):
@@ -295,6 +296,7 @@ def initiate_payment():
 
 
 @payment_bp.route('/stk_callback', methods=['POST'])
+@limiter.limit('120 per minute')
 def daraja_callback():
     """
     Handles M-Pesa/Daraja STK Push callback
@@ -435,6 +437,7 @@ def daraja_callback():
         }), 200
 
 @payment_bp.route('/<int:transaction_id>/status', methods=['GET'])
+@limiter.limit('60 per minute')
 @jwt_required()
 def get_transaction_status(transaction_id):
     """
@@ -474,10 +477,11 @@ def get_transaction_status(transaction_id):
         return jsonify({'error': str(e)}), 500
 
 @payment_bp.route('/ping', methods=['GET'])
+@limiter.limit('30 per minute')
 def callback_ping():
     """Simple endpoint to test if callback URL is publicly accessible"""
     return jsonify({
         'status': 'ok',
         'message': 'Callback endpoint is reachable',
-        'endpoint': '/api/payment/confirm'
+        'endpoint': '/api/payment/stk_callback'
     }), 200

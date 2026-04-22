@@ -102,11 +102,11 @@ def test_callback_flow():
             }
         }
         
-        print(f'Sending callback to: {API_BASE}/payment/confirm')
+        print(f'Sending callback to: {API_BASE}/payment/stk_callback')
         print(f'Payload: {json.dumps(callback_payload, indent=2)}')
         
         callback_response = requests.post(
-            f'{API_BASE}/payment/confirm',
+            f'{API_BASE}/payment/stk_callback',
             json=callback_payload,
             timeout=30
         )

@@ -236,7 +236,7 @@ def test_mpesa_callback_success(client, test_app):
     }
     
     # Act
-    resp = client.post('/api/payment/confirm', json=callback_payload)
+    resp = client.post('/api/payment/stk_callback', json=callback_payload)
     data = resp.get_json()
     
     # Assert callback response
@@ -279,7 +279,7 @@ def test_mpesa_callback_failure(client, test_app):
     }
     
     # Act
-    resp = client.post('/api/payment/confirm', json=callback_payload)
+    resp = client.post('/api/payment/stk_callback', json=callback_payload)
     data = resp.get_json()
     
     # Assert

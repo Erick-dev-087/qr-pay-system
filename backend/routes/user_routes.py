@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from models import User, Transaction
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
-from extensions import db
+from extensions import db, limiter
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
 from utils.user_analytics_utils import (
@@ -19,6 +19,7 @@ from utils.user_analytics_utils import (
 user_bp = Blueprint('user',__name__)
 
 @user_bp.route('/profile', methods=['GET'])
+@limiter.limit('120 per minute')
 @jwt_required()
 def get_profile():
     """Get current user's profile information"""
@@ -47,6 +48,7 @@ def get_profile():
 
 
 @user_bp.route('/profile', methods=["PUT"])
+@limiter.limit('20 per minute')
 @jwt_required()
 def update_profile():
     """Update current user's profile information"""
@@ -118,6 +120,7 @@ def update_profile():
 
 
 @user_bp.route('/password', methods=['PUT'])
+@limiter.limit('5 per 10 minute')
 @jwt_required()
 def update_password():
     """Change user password"""
@@ -166,6 +169,7 @@ def update_password():
     
 
 @user_bp.route('/transactions', methods=['GET'])
+@limiter.limit('60 per minute')
 @jwt_required()
 def get_transactions():
     """Get all transactions for the current user with pagination"""
@@ -217,6 +221,7 @@ def get_transactions():
 
 
 @user_bp.route('/transactions/<int:transaction_id>', methods=['GET'])
+@limiter.limit('90 per minute')
 @jwt_required()
 def get_transaction(transaction_id):
     """Get specific transaction details for the current user"""
@@ -250,6 +255,7 @@ def get_transaction(transaction_id):
 
 
 @user_bp.route('/analytics', methods=['GET'])
+@limiter.limit('20 per minute')
 @jwt_required()
 def get_analytics():
     """

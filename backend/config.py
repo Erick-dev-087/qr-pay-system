@@ -54,7 +54,7 @@ class DarajaAPIConfigs():
     DARAJA_BASE_URL = os.getenv("DARAJA_BASE_URL","https://sandbox.safaricom.co.ke")
     DARAJA_SHORTCODE = os.getenv("DARAJA_SHORTCODE")
     DARAJA_PASSKEY = os.getenv("DARAJA_PASSKEY")
-    DARAJA_CALLBACK_URL = os.getenv("DARAJA_CALLBACK_URL", "https://yourdomain.com/confirm")
+    DARAJA_CALLBACK_URL = os.getenv("DARAJA_CALLBACK_URL", "https://yourdomain.com/api/payment/stk_callback")
 
     @classmethod
     def validate(cls):
@@ -118,3 +118,8 @@ class EmailConfig:
     MAIL_RETRY_BACKOFF_SECONDS = float(
         (os.getenv("MAIL_RETRY_BACKOFF_SECONDS") or "1").strip() or 1
     )
+
+class RateLimitConfig:
+    """Rate Limit Configs"""
+    RATELIMIT_STORAGE_URI = (os.getenv("RATELIMIT_STORAGE_URI") or "memory://").strip()
+    RATELIMIT_ENABLE_HEADERS = _as_bool(os.getenv("RATELIMIT_ENABLE_HEADERS"), True)

@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 
 from utils.auth_utils import AuthUtill, AuthUtilError
-
+from extensions import limiter
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 auth_util = AuthUtill()
@@ -16,6 +16,7 @@ def _error_response(exc):
 
 
 @auth_bp.route("/register/user", methods=["POST"])
+@limiter.limit("3 per minute")
 def register_user():
     try:
         data = request.get_json(silent=True)
@@ -28,6 +29,7 @@ def register_user():
 
 
 @auth_bp.route("/register/vendor", methods=["POST"])
+@limiter.limit("3 per minute")
 def register_vendor():
     try:
         data = request.get_json(silent=True)
@@ -40,6 +42,7 @@ def register_vendor():
 
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("8 per minute")
 def login():
     try:
         data = request.get_json(silent=True)
@@ -52,6 +55,7 @@ def login():
 
 
 @auth_bp.route("/logout", methods=["POST"])
+@limiter.limit("30 per minute")
 @jwt_required()
 def logout():
     try:
@@ -66,6 +70,7 @@ def logout():
 
 
 @auth_bp.route("/forgot-password", methods=["POST"])
+@limiter.limit("3 per 10 minute")
 def forgot_password():
     try:
         data = request.get_json(silent=True)
@@ -78,6 +83,7 @@ def forgot_password():
 
 
 @auth_bp.route("/reset-password", methods=["POST"])
+@limiter.limit("5 per 10 minute")
 def reset_password():
     try:
         data = request.get_json(silent=True)

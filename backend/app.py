@@ -1,10 +1,13 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from sqlalchemy import text
-from extensions import db, jwt, migrate
+from extensions import db, jwt, migrate, limiter
 from config import (DatabaseConfigs, FlaskConfigs, 
-                    JWTConfig, PasswordResetConfig, EmailConfig)
+                    JWTConfig, PasswordResetConfig, EmailConfig, RateLimitConfig)
 from routes import auth_bp, user_bp, vendor_bp, qr_bp, payment_bp, admin_bp
+
+import os
+
 
 
 def create_app():
@@ -46,12 +49,15 @@ def create_app():
     app.config['MAIL_TIMEOUT_SECONDS'] = EmailConfig.MAIL_TIMEOUT_SECONDS
     app.config['MAIL_SEND_MAX_RETRIES'] = EmailConfig.MAIL_SEND_MAX_RETRIES
     app.config['MAIL_RETRY_BACKOFF_SECONDS'] = EmailConfig.MAIL_RETRY_BACKOFF_SECONDS
-
+    app.config['RATELIMIT_STORAGE_URI'] = RateLimitConfig.RATELIMIT_STORAGE_URI
+    app.config['RATELIMIT_HEADERS_ENABLED'] = RateLimitConfig.RATELIMIT_ENABLE_HEADERS
+    
     
     # Initialize extensions with app
     db.init_app(app)
     jwt.init_app(app)
     migrate.init_app(app, db)
+    limiter.init_app(app)
     
     # Import models to register them with Flask-Migrate
     from models import User, Vendor, Transaction, QRCode, ScanLog, PaymentSession
@@ -105,6 +111,7 @@ def create_app():
     print("Blueprints registered successfully!")
     
     @app.route('/api/health', methods=['GET'])
+    @limiter.limit('120 per minute')
     def health_check():
         """
         Health check endpoint for testing backend connectivity.
@@ -122,6 +129,13 @@ def create_app():
             "message": "QR Pay System backend is running",
             "version": "1.0.0"
         }), 200
+
+    @app.errorhandler(429)
+    def rate_limit_exceeded(_error):
+        return jsonify({
+            'error': 'Too many requests',
+            'message': 'Rate limit exceeded. Please try again shortly.'
+        }), 429
 
     return app
 

@@ -1035,7 +1035,7 @@ Initiates an M-Pesa STK Push payment to a vendor.
 
 Receives payment confirmation from M-Pesa/Daraja.
 
-**Endpoint:** `POST /api/payment/confirm`
+**Endpoint:** `POST /api/payment/stk_callback`
 
 **Authentication:** None (called by Safaricom servers)
 
@@ -1135,7 +1135,7 @@ Tests if the callback endpoint is publicly accessible.
 {
     "status": "ok",
     "message": "Callback endpoint is reachable",
-    "endpoint": "/api/payment/confirm"
+    "endpoint": "/api/payment/stk_callback"
 }
 ```
 
@@ -1670,7 +1670,7 @@ class DarajaAPIConfigs:
     DARAJA_BASE_URL = "https://sandbox.safaricom.co.ke"
     DARAJA_SHORTCODE = "..."
     DARAJA_PASSKEY = "..."
-    DARAJA_CALLBACK_URL = "https://yourdomain.com/confirm"
+    DARAJA_CALLBACK_URL = "https://yourdomain.com/api/payment/stk_callback"
 ```
 
 ### 10.4 Environment Variables (`.env`)
@@ -1691,7 +1691,7 @@ DARAJA_CONSUMER_KEY=your-consumer-key
 DARAJA_CONSUMER_SECRET=your-consumer-secret
 DARAJA_SHORTCODE=123456
 DARAJA_PASSKEY=your-passkey
-DARAJA_CALLBACK_URL=https://your-public-url.com/api/payment/confirm
+DARAJA_CALLBACK_URL=https://your-public-url.com/api/payment/stk_callback
 ```
 
 ---
@@ -1727,7 +1727,7 @@ DARAJA_CALLBACK_URL=https://your-public-url.com/api/payment/confirm
 | POST | `/api/qr/validate` | JWT | Validate QR code |
 | **Payment** |
 | POST | `/api/payment/initiate` | JWT | Start payment |
-| POST | `/api/payment/confirm` | No | Daraja callback |
+| POST | `/api/payment/stk_callback` | No | Daraja callback |
 | GET | `/api/payment/{id}/status` | JWT | Check status |
 | GET | `/api/payment/ping` | No | Health check |
 | **Admin** |

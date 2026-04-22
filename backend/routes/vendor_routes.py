@@ -1,6 +1,6 @@
 from flask import Blueprint,jsonify, request
 from models import Vendor,Transaction
-from extensions import db
+from extensions import db, limiter
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timezone
@@ -19,6 +19,7 @@ vendor_bp = Blueprint('vendor',__name__)
 VALID_SHORTCODE_TYPES = {'TILL', 'PAYBILL'}
 
 @vendor_bp.route('/profile', methods=['GET'])
+@limiter.limit('120 per minute')
 @jwt_required()
 def get_profile():
     """Get current vendor's profile information"""
@@ -55,6 +56,7 @@ def get_profile():
 
 
 @vendor_bp.route('/profile',methods=['PUT'])
+@limiter.limit('20 per minute')
 @jwt_required()
 def update_profile():
     """Update current vendor's profile information"""
@@ -157,6 +159,7 @@ def update_profile():
     
 
 @vendor_bp.route('/transactions', methods=['GET'])
+@limiter.limit('60 per minute')
 @jwt_required()
 def get_transactions():
     """Get all transactions for the current vendor"""
@@ -208,6 +211,7 @@ def get_transactions():
 
 
 @vendor_bp.route('/transactions/<int:transaction_id>', methods=['GET'])
+@limiter.limit('90 per minute')
 @jwt_required()
 def get_transaction(transaction_id):
     """Get specific transaction details for the current vendor"""
@@ -242,6 +246,7 @@ def get_transaction(transaction_id):
 
 
 @vendor_bp.route('/analytics', methods=['GET'])
+@limiter.limit('20 per minute')
 @jwt_required()
 def get_analytics():
     """
@@ -326,6 +331,7 @@ def get_analytics():
 
 
 @vendor_bp.route('/password', methods=['PUT'])
+@limiter.limit('5 per 10 minute')
 @jwt_required()
 def update_password():
     """Change vendor password"""

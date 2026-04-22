@@ -1,6 +1,6 @@
 from flask import Blueprint,jsonify, request
 from models import Vendor, User, Transaction, QRCode,QRStatus,QR_Type
-from extensions import db
+from extensions import db, limiter
 from flask_jwt_extended import get_jwt, get_jwt_identity, jwt_required
 from utils.admin_analytics import (
     get_admin_dashboard_summary,
@@ -22,6 +22,7 @@ admin_bp = Blueprint('admin',__name__)
 
 
 @admin_bp.route('/api/admin/metrics/overview', methods=['GET'])
+@limiter.limit('20 per minute')
 @jwt_required()
 def get_dashboard_overview():
     """
@@ -57,6 +58,7 @@ def get_dashboard_overview():
 
 
 @admin_bp.route('/api/admin/metrics/merchants', methods=['GET'])
+@limiter.limit('20 per minute')
 @jwt_required()
 def get_merchant_insights():
     """
@@ -81,6 +83,7 @@ def get_merchant_insights():
 
 
 @admin_bp.route('/api/admin/metrics/users', methods=['GET'])
+@limiter.limit('20 per minute')
 @jwt_required()
 def get_user_insights():
     """
@@ -107,6 +110,7 @@ def get_user_insights():
 
 
 @admin_bp.route('/api/admin/vendors/all', methods=['GET'])
+@limiter.limit('15 per minute')
 @jwt_required()
 def get_all_vendors_endpoint():
     """
@@ -128,6 +132,7 @@ def get_all_vendors_endpoint():
 
 
 @admin_bp.route('/api/admin/users/all', methods=['GET'])
+@limiter.limit('15 per minute')
 @jwt_required()
 def get_all_users_endpoint():
     """

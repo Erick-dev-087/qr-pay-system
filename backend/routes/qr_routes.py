@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models import Vendor, QRCode, QR_Type, QRStatus, ScanLog, ScanStatus
-from extensions import db
+from extensions import db, limiter
 from utils.qr_utils import QR_utils
 from datetime import datetime, timezone
 from sqlalchemy import or_
@@ -198,6 +198,7 @@ def _create_external_vendor_and_qr(payload, parsed_payload, merchant_account):
     return vendor, qr_record
 
 @qr_bp.route('/generate', methods=['POST'])
+@limiter.limit('12 per minute')
 @jwt_required()
 def generate_qrCode():
     
@@ -299,6 +300,7 @@ def generate_qrCode():
 
 
 @qr_bp.route('/scan', methods=['POST'])
+@limiter.limit('45 per minute')
 @jwt_required()
 def scan_qr():
     """Scan and validate a QR code, log the scan, and return vendor info"""
@@ -430,6 +432,7 @@ def scan_qr():
 
 
 @qr_bp.route('/validate', methods=['POST'])
+@limiter.limit('60 per minute')
 @jwt_required()
 def validate_qr():
     """Validate a QR code without logging a scan (read-only check)"""

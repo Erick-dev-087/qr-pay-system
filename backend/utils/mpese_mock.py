@@ -78,7 +78,7 @@ class MockMpesaService:
     def simulate_callback(transaction_id, success=True):
         """
         Simulates M-Pesa callback
-        Use this for testing the /api/payment/confirm endpoint
+        Use this for testing the /api/payment/stk_callback endpoint
         
         In production, M-Pesa will POST to your callback_url with this structure
         """
